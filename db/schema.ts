@@ -137,6 +137,34 @@ export const productStatuses = pgTable("product_statuses", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/* ───────── Product base catalog (shared across platforms) ───────── */
+// One row per real product per client. The SHARED data (name, image, price…)
+// lives here ONCE; each platform listing (a `products` row) references it via
+// base_id and carries only the per-platform fields (status/assignee/code/notes).
+export const productBases = pgTable(
+  "product_bases",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    clientUserId: uuid("client_user_id").references(() => users.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    sizes: text("sizes"),
+    features: text("features"),
+    colors: text("colors"),
+    imageUrl: text("image_url"),
+    galleryUrl: text("gallery_url"),
+    productUrl: text("product_url"),
+    asin: text("asin"),
+    brand: text("brand"),
+    price: numeric("price", { precision: 12, scale: 2 }),
+    baseData: jsonb("base_data").$type<Record<string, unknown>>().default({}),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("product_bases_client_idx").on(t.clientUserId)],
+);
+
 /* ───────────────────── Products (§9) ────────────────────── */
 
 export const products = pgTable(
@@ -146,6 +174,10 @@ export const products = pgTable(
     workspaceId: uuid("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
+    // Shared base catalog item (single source of truth for base data across
+    // platform listings). Nullable during migration; base data below is kept
+    // for back-compat but the base row is authoritative going forward.
+    baseId: uuid("base_id").references(() => productBases.id, { onDelete: "set null" }),
     // Locked columns (imported FROM the client's Excel file, app never overwrites)
     sku: text("sku").notNull(),
     name: text("name").notNull(),
@@ -184,6 +216,8 @@ export const products = pgTable(
     index("products_workspace_draft_idx").on(t.workspaceId, t.isDraft),
     // Employee scoping: assigned products excluding drafts.
     index("products_assigned_draft_idx").on(t.assignedTo, t.isDraft),
+    // Listings that share one base catalog item (same product, many platforms).
+    index("products_base_idx").on(t.baseId),
   ],
 );
 
