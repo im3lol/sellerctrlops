@@ -25,7 +25,12 @@ const EVENT_TYPES = [
   "attendance",
 ];
 
+// "sse" (default — long-running server) streams live; "poll" (Vercel/serverless)
+// skips SSE and relies on PollRefresh to re-fetch on an interval.
+const REALTIME_MODE = process.env.NEXT_PUBLIC_REALTIME ?? "sse";
+
 function ensureSource() {
+  if (REALTIME_MODE !== "sse") return;
   if (sharedSource) return;
   sharedSource = new EventSource("/api/realtime/sse");
   for (const type of EVENT_TYPES) {

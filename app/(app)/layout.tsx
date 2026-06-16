@@ -6,6 +6,7 @@ import { notifications } from "@/db/schema";
 import { getTodaySnapshot } from "@/lib/attendance";
 import { Sidebar } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
+import { PollRefresh } from "@/components/realtime/poll-refresh";
 import type { Role } from "@/lib/rbac";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -36,6 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           attendance={attendanceSnap}
         />
         <main className="flex-1 p-4 md:p-6">{children}</main>
+        <PollRefresh />
       </div>
     </div>
   );
