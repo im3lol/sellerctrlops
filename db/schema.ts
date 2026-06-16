@@ -177,6 +177,10 @@ export const products = pgTable(
     index("products_assigned_idx").on(t.assignedTo),
     index("products_status_idx").on(t.statusId),
     index("products_workspace_idx").on(t.workspaceId),
+    // Hot path: list/count by workspace + draft state (large workspaces).
+    index("products_workspace_draft_idx").on(t.workspaceId, t.isDraft),
+    // Employee scoping: assigned products excluding drafts.
+    index("products_assigned_draft_idx").on(t.assignedTo, t.isDraft),
   ],
 );
 

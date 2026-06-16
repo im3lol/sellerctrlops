@@ -1,0 +1,2 @@
+CREATE INDEX "products_workspace_draft_idx" ON "products" USING btree ("workspace_id","is_draft");--> statement-breakpoint
+CREATE INDEX "products_assigned_draft_idx" ON "products" USING btree ("assigned_to","is_draft");

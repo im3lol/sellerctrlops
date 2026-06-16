@@ -50,6 +50,13 @@
       "when": 1781607111431,
       "tag": "0006_flimsy_iron_man",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781609071687,
+      "tag": "0007_deep_night_thrasher",
+      "breakpoints": true
     }
   ]
 }
