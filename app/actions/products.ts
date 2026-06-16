@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { and, eq, isNull, isNotNull, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db, pool } from "@/lib/db";
-import { products, productStatuses, users } from "@/db/schema";
+import { products, productStatuses, users, productBases } from "@/db/schema";
+import { ne } from "drizzle-orm";
 import { requireUser } from "@/lib/session";
 import { canAccessWorkspace } from "@/lib/workspaces";
 import { can } from "@/lib/rbac";
@@ -130,6 +131,29 @@ export async function updateProductAction(_prev: ProductFormState, formData: For
       updatedAt: new Date(),
     })
     .where(eq(products.id, productId));
+
+  // Base data is shared: update the base catalog item and sync it to every other
+  // platform listing of the same product (per-platform status/assignee/code/notes
+  // are left untouched).
+  if (before.baseId) {
+    const baseFields = {
+      name: d.name,
+      brand: d.brand ?? null,
+      description: d.description ?? null,
+      features: d.features ?? null,
+      sizes: d.sizes ?? null,
+      price: d.price ?? null,
+      imageUrl: d.imageUrl ?? null,
+      galleryUrl: d.galleryUrl ?? null,
+      productUrl: d.productUrl ?? null,
+      updatedAt: new Date(),
+    };
+    await db.update(productBases).set(baseFields).where(eq(productBases.id, before.baseId));
+    await db
+      .update(products)
+      .set(baseFields)
+      .where(and(eq(products.baseId, before.baseId), ne(products.id, productId)));
+  }
 
   await recordActivity({ actorId: user.id, workspaceId: before.workspaceId, entityType: "product", entityId: productId, action: "product.updated", summaryAr: `${user.name} عدّل بيانات المنتج «${d.name}»` });
   await publish(query, { channel: `workspace:${before.workspaceId}`, type: "product_updated", payload: { productId } });
@@ -323,6 +347,75 @@ export async function deleteProductsAction(ids: string[]): Promise<{ ok: boolean
   }
   revalidatePath("/products");
   return { ok: true, deleted: allowed.length };
+}
+
+/**
+ * Publish an existing product to another platform (workspace) as a new listing
+ * that SHARES the same base catalog item — no base-data re-entry. The new
+ * listing starts fresh per-platform: default status, unassigned, empty code/notes.
+ */
+export async function createListingAction(
+  productId: string,
+  targetWorkspaceId: string,
+): Promise<{ ok: boolean; error?: string; listingId?: string }> {
+  const user = await requireUser();
+  if (!can(user.role, "product.distribute")) return { ok: false, error: "غير مصرّح (المديرون فقط)" };
+  const src = await loadProduct(productId);
+  if (!src) return { ok: false, error: "المنتج غير موجود" };
+  if (!(await canAccessWorkspace(user, targetWorkspaceId))) return { ok: false, error: "غير مصرّح بهذه المساحة" };
+  if (targetWorkspaceId === src.workspaceId) return { ok: false, error: "المنتج موجود بالفعل في هذه المساحة" };
+  if (!src.baseId) return { ok: false, error: "هذا المنتج غير مرتبط بعنصر أساسي" };
+
+  // Don't duplicate the same base on the same workspace.
+  const [dup] = await db
+    .select({ id: products.id })
+    .from(products)
+    .where(and(eq(products.baseId, src.baseId), eq(products.workspaceId, targetWorkspaceId)))
+    .limit(1);
+  if (dup) return { ok: false, error: "المنتج منشور بالفعل على هذه المنصة" };
+
+  const [def] = await db
+    .select({ id: productStatuses.id })
+    .from(productStatuses)
+    .where(and(isNull(productStatuses.workspaceId), eq(productStatuses.isDefault, true)))
+    .limit(1);
+
+  const [listing] = await db
+    .insert(products)
+    .values({
+      workspaceId: targetWorkspaceId,
+      baseId: src.baseId,
+      sku: `LST-${Date.now()}`,
+      // base data copied from the shared base (kept in sync on future edits)
+      name: src.name,
+      brand: src.brand,
+      description: src.description,
+      sizes: src.sizes,
+      features: src.features,
+      colors: src.colors,
+      imageUrl: src.imageUrl,
+      galleryUrl: src.galleryUrl,
+      productUrl: src.productUrl,
+      price: src.price,
+      // fresh per-platform fields
+      statusId: def?.id ?? null,
+      isDraft: false,
+    })
+    .returning({ id: products.id });
+
+  await recordActivity({
+    actorId: user.id,
+    workspaceId: targetWorkspaceId,
+    entityType: "product",
+    entityId: listing.id,
+    action: "product.listing_added",
+    summaryAr: `${user.name} نشر المنتج «${src.name}» على منصة جديدة`,
+  });
+  await publish(query, { channel: `workspace:${targetWorkspaceId}`, type: "product_updated", payload: { created: true } });
+  revalidatePath(`/products/${productId}`);
+  revalidatePath(`/workspaces/${targetWorkspaceId}`);
+  revalidatePath("/products");
+  return { ok: true, listingId: listing.id };
 }
 
 async function loadProduct(id: string) {

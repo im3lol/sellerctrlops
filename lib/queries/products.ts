@@ -133,6 +133,32 @@ export async function myProductProgress(userId: string) {
     .groupBy(products.workspaceId, workspaces.name);
 }
 
+/**
+ * All platform listings that share a product's base catalog item — each with
+ * its platform (workspace), code, and status. Powers the product detail
+ * "platforms" panel (same product across Amazon/Noon/…).
+ */
+export async function listingsForBase(baseId: string) {
+  return db
+    .select({
+      id: products.id,
+      workspaceId: products.workspaceId,
+      workspaceName: workspaces.name,
+      workspaceType: workspaces.type,
+      amazonCode: products.amazonCode,
+      isDraft: products.isDraft,
+      statusName: productStatuses.name,
+      statusColor: productStatuses.color,
+      assigneeName: users.name,
+    })
+    .from(products)
+    .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
+    .leftJoin(workspaces, eq(products.workspaceId, workspaces.id))
+    .leftJoin(users, eq(products.assignedTo, users.id))
+    .where(eq(products.baseId, baseId))
+    .orderBy(workspaces.name);
+}
+
 /** Statuses available for a workspace: globals + workspace-specific. */
 export async function listStatuses(workspaceId?: string) {
   const rows = await db

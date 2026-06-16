@@ -2,13 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { requireUser } from "@/lib/session";
-import { canAccessWorkspace } from "@/lib/workspaces";
+import { canAccessWorkspace, getAccessibleWorkspaces } from "@/lib/workspaces";
 import { can } from "@/lib/rbac";
 import {
   getProductDetail,
   listStatuses,
   workspaceAssignees,
+  listingsForBase,
 } from "@/lib/queries/products";
+import { ProductPlatforms } from "@/components/products/product-platforms";
 import { listEntityActivity } from "@/lib/queries/activity";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/products/status-badge";
@@ -41,10 +43,13 @@ export default async function ProductDetailPage({
   const canReview = can(user.role, "product.review");
   // Draft products are hidden from non-reviewers (employees/clients) until confirmed.
   if (p.isDraft && !canReview) notFound();
-  const [statuses, assignees, history] = await Promise.all([
+  const canManageListings = can(user.role, "product.distribute");
+  const [statuses, assignees, history, listings, addable] = await Promise.all([
     listStatuses(p.workspaceId),
     workspaceAssignees(p.workspaceId),
     listEntityActivity("product", id),
+    p.baseId ? listingsForBase(p.baseId) : Promise.resolve([]),
+    canManageListings ? getAccessibleWorkspaces(user).then((ws) => ws.map((w) => ({ id: w.id, name: w.name }))) : Promise.resolve([] as { id: string; name: string }[]),
   ]);
   const statusOptions = statuses.map((s) => ({ id: s.id, name: s.name, color: s.color }));
   const baseData = (p.baseData ?? {}) as Record<string, unknown>;
@@ -157,6 +162,12 @@ export default async function ProductDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-4">
+          {(listings.length > 1 || (canManageListings && addable.length > 1)) && (
+            <Card className="p-5">
+              <ProductPlatforms productId={id} currentId={id} listings={listings} addableWorkspaces={addable} />
+            </Card>
+          )}
+
           <Card className="space-y-3 p-5">
             <div>
               <p className="font-semibold">وصف المنتج بالذكاء الاصطناعي</p>

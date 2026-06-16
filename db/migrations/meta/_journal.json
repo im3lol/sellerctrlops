@@ -64,6 +64,13 @@
       "when": 1781612114231,
       "tag": "0008_windy_proteus",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781647788896,
+      "tag": "0009_pale_rawhide_kid",
+      "breakpoints": true
     }
   ]
 }
