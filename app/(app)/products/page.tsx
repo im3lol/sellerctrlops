@@ -24,7 +24,13 @@ export default async function ProductsPage({
     assignedTo: sp.assignedTo,
     search: sp.search,
   };
-  if (!manager) filters.workspaceIds = await memberWorkspaceIds(user.id);
+  // Employees see ONLY products assigned to them; team leads/others see their
+  // workspaces; managers see everything.
+  if (user.role === "employee") {
+    filters.assignedTo = user.id;
+  } else if (!manager) {
+    filters.workspaceIds = await memberWorkspaceIds(user.id);
+  }
 
   const [rows, statuses, employees] = await Promise.all([
     listProducts(filters),

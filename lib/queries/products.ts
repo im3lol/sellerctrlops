@@ -37,6 +37,7 @@ export async function listProducts(filters: ProductFilters, limit = 200) {
       brand: products.brand,
       price: products.price,
       imageUrl: products.imageUrl,
+      productUrl: products.productUrl,
       notes: products.notes,
       amazonCode: products.amazonCode,
       assignedTo: products.assignedTo,

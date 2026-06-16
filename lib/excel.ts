@@ -5,15 +5,14 @@ import * as XLSX from "xlsx";
  * the team uploads it. Column headers are Arabic and matched by name.
  */
 export const TEMPLATE_COLUMNS: { header: string; field: ParsedField }[] = [
-  { header: "لينك الصورة", field: "imageUrl" },
+  { header: "لينك صورة العرض", field: "imageUrl" },
   { header: "اسم المنتج", field: "name" },
-  { header: "الوصف", field: "description" },
-  { header: "المقاسات", field: "sizes" },
-  { header: "المميزات", field: "features" },
-  { header: "لينك كل الصور", field: "galleryUrl" },
-  { header: "البراند", field: "brand" },
+  { header: "وصف المنتج", field: "description" },
+  { header: "مميزات المنتج", field: "features" },
+  { header: "مقاسات المنتج", field: "sizes" },
+  { header: "لينك المنتج على الموقع", field: "productUrl" },
   { header: "السعر", field: "price" },
-  { header: "الألوان", field: "colors" },
+  { header: "صور المنتج (لينك درايف)", field: "galleryUrl" },
 ];
 
 export type ParsedField =
@@ -22,10 +21,9 @@ export type ParsedField =
   | "description"
   | "sizes"
   | "features"
+  | "productUrl"
   | "galleryUrl"
-  | "brand"
-  | "price"
-  | "colors";
+  | "price";
 
 export type ParsedProduct = Partial<Record<ParsedField, string>>;
 
@@ -36,12 +34,11 @@ export function buildTemplateBuffer(): Buffer {
     "https://example.com/product.jpg",
     "سماعة بلوتوث لاسلكية",
     "سماعة بلوتوث عالية الجودة مع إلغاء الضوضاء",
+    "بطارية 30 ساعة، مقاومة للماء، صوت نقي",
     "مقاس واحد",
-    "بطارية 30 ساعة، مقاومة للماء",
-    "https://drive.google.com/folder/...",
-    "Anker",
+    "https://www.amazon.sa/dp/B0XXXX",
     "199.00",
-    "أسود، أبيض، أزرق",
+    "https://drive.google.com/folder/...",
   ];
   const ws = XLSX.utils.aoa_to_sheet([headers, example]);
   ws["!cols"] = headers.map(() => ({ wch: 24 }));

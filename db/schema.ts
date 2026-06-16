@@ -150,8 +150,9 @@ export const products = pgTable(
     sizes: text("sizes"), // المقاسات
     features: text("features"), // المميزات
     colors: text("colors"), // الألوان
-    imageUrl: text("image_url"), // لينك الصورة (main image — previewed in table)
-    galleryUrl: text("gallery_url"), // لينك كل الصور مجمعة
+    imageUrl: text("image_url"), // لينك صورة العرض (main image — previewed in table)
+    galleryUrl: text("gallery_url"), // صور المنتج كلها (لينك درايف)
+    productUrl: text("product_url"), // لينك المنتج على الموقع
     asin: text("asin"),
     brand: text("brand"),
     price: numeric("price", { precision: 12, scale: 2 }),

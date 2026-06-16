@@ -57,10 +57,9 @@ export async function importProductsAction(
     description: r.description ?? null,
     sizes: r.sizes ?? null,
     features: r.features ?? null,
-    colors: r.colors ?? null,
     imageUrl: r.imageUrl ?? null,
     galleryUrl: r.galleryUrl ?? null,
-    brand: r.brand ?? null,
+    productUrl: r.productUrl ?? null,
     price: r.price ? r.price.replace(/[^\d.]/g, "") || null : null,
     statusId,
   }));

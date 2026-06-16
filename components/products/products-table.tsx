@@ -48,7 +48,6 @@ export function ProductsTable({
           <TableRow className="bg-muted/50">
             <TableHead className="w-14 text-right">الصورة</TableHead>
             <TableHead className="text-right">المنتج</TableHead>
-            <TableHead className="text-right">البراند</TableHead>
             <TableHead className="text-right">السعر</TableHead>
             {showWorkspace && <TableHead className="text-right">مساحة العمل</TableHead>}
             {/* open columns (app-owned, after the imported data) */}
@@ -65,17 +64,25 @@ export function ProductsTable({
               <TableCell>
                 <ProductThumb src={p.imageUrl} name={p.name} />
               </TableCell>
-              <TableCell className="max-w-[220px]">
-                <Link href={`/products/${p.id}`} className="font-medium hover:text-primary">
-                  {p.name}
-                </Link>
-                {p.asin && (
-                  <span className="block font-mono text-xs text-muted-foreground" dir="ltr">
-                    {p.asin}
-                  </span>
-                )}
+              <TableCell className="max-w-[240px]">
+                <div className="flex items-center gap-1.5">
+                  <Link href={`/products/${p.id}`} className="truncate font-medium hover:text-primary">
+                    {p.name}
+                  </Link>
+                  {p.productUrl && (
+                    <a
+                      href={p.productUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="رابط المنتج على الموقع"
+                      className="shrink-0 text-muted-foreground hover:text-primary"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ExternalLink className="size-3.5" />
+                    </a>
+                  )}
+                </div>
               </TableCell>
-              <TableCell className="text-sm text-muted-foreground">{p.brand ?? "—"}</TableCell>
               <TableCell className="tabular-nums text-sm" dir="ltr">
                 {p.price ? `${p.price} ر.س` : "—"}
               </TableCell>

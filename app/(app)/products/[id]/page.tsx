@@ -71,29 +71,25 @@ export default async function ProductDetailPage({
               </div>
             )}
 
-            {/* Locked data from the imported Excel (§9) */}
+            {/* Locked data from the imported Excel */}
             <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
-              <Field label="البراند" value={p.brand} />
               <Field label="السعر" value={p.price ? `${p.price} ر.س` : null} />
-              <Field label="الألوان" value={p.colors} />
               <Field label="المقاسات" value={p.sizes} />
+              {p.productUrl && (
+                <LinkField label="رابط المنتج على الموقع" href={p.productUrl} />
+              )}
               {p.galleryUrl && (
-                <div className="col-span-2">
-                  <p className="text-xs text-muted-foreground">لينك كل الصور</p>
-                  <a href={p.galleryUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline" dir="ltr">
-                    {p.galleryUrl}
-                  </a>
-                </div>
+                <LinkField label="صور المنتج (درايف)" href={p.galleryUrl} />
               )}
               {p.features && (
                 <div className="col-span-2">
-                  <p className="text-xs text-muted-foreground">المميزات</p>
+                  <p className="text-xs text-muted-foreground">مميزات المنتج</p>
                   <p className="whitespace-pre-wrap">{p.features}</p>
                 </div>
               )}
               {p.description && (
                 <div className="col-span-2">
-                  <p className="text-xs text-muted-foreground">الوصف</p>
+                  <p className="text-xs text-muted-foreground">وصف المنتج</p>
                   <p className="whitespace-pre-wrap">{p.description}</p>
                 </div>
               )}
@@ -153,6 +149,23 @@ export default async function ProductDetailPage({
           </Card>
         </div>
       </div>
+    </div>
+  );
+}
+
+function LinkField({ label, href }: { label: string; href: string }) {
+  return (
+    <div className="col-span-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="break-all text-sm text-primary hover:underline"
+        dir="ltr"
+      >
+        {href}
+      </a>
     </div>
   );
 }
