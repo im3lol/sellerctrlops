@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { setProductStatusAction, assignProductAction } from "@/app/actions/products";
 import { StatusBadge } from "@/components/products/status-badge";
@@ -28,6 +29,7 @@ export function ProductStatusSelect({
   disabled?: boolean;
 }) {
   const [pending, start] = useTransition();
+  const router = useRouter();
   const current = statuses.find((s) => s.id === statusId);
 
   if (disabled) return <StatusBadge name={current?.name ?? null} color={current?.color ?? null} />;
@@ -39,6 +41,7 @@ export function ProductStatusSelect({
         start(async () => {
           try {
             await setProductStatusAction(productId, v);
+            router.refresh();
           } catch {
             toast.error("تعذّر تحديث الحالة");
           }
@@ -78,6 +81,7 @@ export function ProductAssigneeSelect({
   disabled?: boolean;
 }) {
   const [, start] = useTransition();
+  const router = useRouter();
   const current = assignees.find((a) => a.id === assignedTo);
   const initials = (name: string) => name.split(" ").slice(0, 2).map((p) => p[0]).join("");
 
@@ -102,6 +106,7 @@ export function ProductAssigneeSelect({
         start(async () => {
           try {
             await assignProductAction(productId, v === "none" ? null : v);
+            router.refresh();
           } catch {
             toast.error("تعذّر التعيين");
           }

@@ -70,6 +70,11 @@ export async function publish(
   query: (text: string, params: unknown[]) => Promise<unknown>,
   event: Omit<RealtimeEvent, "at">,
 ): Promise<void> {
-  const full: RealtimeEvent = { ...event, at: new Date().toISOString() };
-  await query(`SELECT pg_notify($1, $2)`, [PG_CHANNEL, JSON.stringify(full)]);
+  // Best-effort: realtime fan-out must never break the mutation that triggered it.
+  try {
+    const full: RealtimeEvent = { ...event, at: new Date().toISOString() };
+    await query(`SELECT pg_notify($1, $2)`, [PG_CHANNEL, JSON.stringify(full)]);
+  } catch (err) {
+    console.error("[realtime] publish failed (ignored):", err);
+  }
 }

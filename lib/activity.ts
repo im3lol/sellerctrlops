@@ -15,26 +15,32 @@ export async function recordActivity(input: {
   action: string;
   summaryAr: string;
 }) {
-  const [row] = await db
-    .insert(activityLog)
-    .values({
-      actorId: input.actorId ?? null,
-      workspaceId: input.workspaceId ?? null,
-      entityType: input.entityType,
-      entityId: input.entityId ?? null,
-      action: input.action,
-      summaryAr: input.summaryAr,
-    })
-    .returning();
+  // Best-effort: timeline logging must never break the user's mutation.
+  try {
+    const [row] = await db
+      .insert(activityLog)
+      .values({
+        actorId: input.actorId ?? null,
+        workspaceId: input.workspaceId ?? null,
+        entityType: input.entityType,
+        entityId: input.entityId ?? null,
+        action: input.action,
+        summaryAr: input.summaryAr,
+      })
+      .returning();
 
-  if (input.workspaceId) {
-    await publish(query, {
-      channel: `workspace:${input.workspaceId}`,
-      type: "activity",
-      payload: { summaryAr: input.summaryAr, action: input.action },
-    });
+    if (input.workspaceId) {
+      await publish(query, {
+        channel: `workspace:${input.workspaceId}`,
+        type: "activity",
+        payload: { summaryAr: input.summaryAr, action: input.action },
+      });
+    }
+    return row;
+  } catch (err) {
+    console.error("[activity] recordActivity failed (ignored):", err);
+    return undefined;
   }
-  return row;
 }
 
 /** Audit log entry (§18) — before/after snapshot for sensitive mutations. */
@@ -47,15 +53,19 @@ export async function recordAudit(input: {
   after?: Record<string, unknown>;
   ip?: string;
 }) {
-  await db.insert(auditLog).values({
-    actorId: input.actorId ?? null,
-    entityType: input.entityType,
-    entityId: input.entityId ?? null,
-    action: input.action,
-    before: input.before,
-    after: input.after,
-    ip: input.ip,
-  });
+  try {
+    await db.insert(auditLog).values({
+      actorId: input.actorId ?? null,
+      entityType: input.entityType,
+      entityId: input.entityId ?? null,
+      action: input.action,
+      before: input.before,
+      after: input.after,
+      ip: input.ip,
+    });
+  } catch (err) {
+    console.error("[activity] recordAudit failed (ignored):", err);
+  }
 }
 
 /** Create a notification (§15) and push it live to the recipient. */
@@ -67,22 +77,27 @@ export async function notify(input: {
   link?: string;
   payload?: Record<string, unknown>;
 }) {
-  const [row] = await db
-    .insert(notifications)
-    .values({
-      userId: input.userId,
-      type: input.type,
-      title: input.title,
-      body: input.body,
-      link: input.link,
-      payload: input.payload ?? {},
-    })
-    .returning();
+  try {
+    const [row] = await db
+      .insert(notifications)
+      .values({
+        userId: input.userId,
+        type: input.type,
+        title: input.title,
+        body: input.body,
+        link: input.link,
+        payload: input.payload ?? {},
+      })
+      .returning();
 
-  await publish(query, {
-    channel: `user:${input.userId}`,
-    type: "notification",
-    payload: { id: row.id, title: input.title, body: input.body, link: input.link },
-  });
-  return row;
+    await publish(query, {
+      channel: `user:${input.userId}`,
+      type: "notification",
+      payload: { id: row.id, title: input.title, body: input.body, link: input.link },
+    });
+    return row;
+  } catch (err) {
+    console.error("[activity] notify failed (ignored):", err);
+    return undefined;
+  }
 }

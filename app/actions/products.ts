@@ -10,6 +10,7 @@ import { canAccessWorkspace } from "@/lib/workspaces";
 import { can } from "@/lib/rbac";
 import { recordActivity, recordAudit, notify } from "@/lib/activity";
 import { publish } from "@/lib/realtime";
+import { maybeAutoDistribute } from "@/lib/distribution";
 
 const query = (text: string, params: unknown[]) => pool.query(text, params);
 
@@ -177,6 +178,7 @@ export async function publishProductAction(productId: string): Promise<ProductFo
     type: "product_updated",
     payload: { productId, published: true },
   });
+  await maybeAutoDistribute(before.workspaceId, user.id);
   revalidatePath(`/products/${productId}`);
   revalidatePath(`/workspaces/${before.workspaceId}`);
   revalidatePath("/products");
@@ -226,6 +228,7 @@ export async function publishProductsAction(ids: string[]): Promise<{ ok: boolea
     });
     for (const ws of workspacesTouched) {
       await publish(query, { channel: `workspace:${ws}`, type: "product_updated", payload: { bulkPublished: true } });
+      await maybeAutoDistribute(ws, user.id);
     }
     revalidatePath("/products");
   }
@@ -275,6 +278,7 @@ export async function publishWorkspaceReadyDraftsAction(
     summaryAr: `${user.name} أكّد ${rows.length} منتج جاهز وأتاحها للموظفين`,
   });
   await publish(query, { channel: `workspace:${workspaceId}`, type: "product_updated", payload: { bulkPublished: true } });
+  await maybeAutoDistribute(workspaceId, user.id);
   revalidatePath(`/workspaces/${workspaceId}`);
   revalidatePath("/products");
   return { ok: true, published: rows.length };

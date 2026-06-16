@@ -10,7 +10,12 @@ export default async function DistributionPage() {
   await requireCapability("product.distribute");
 
   const wsList = await db
-    .select({ id: workspaces.id, name: workspaces.name })
+    .select({
+      id: workspaces.id,
+      name: workspaces.name,
+      autoDistribute: workspaces.autoDistribute,
+      autoDistributeStrategy: workspaces.autoDistributeStrategy,
+    })
     .from(workspaces)
     .where(eq(workspaces.isArchived, false));
 
@@ -38,6 +43,8 @@ export default async function DistributionPage() {
     name: w.name,
     unassigned: unassignedMap.get(w.id) ?? 0,
     employees: empMap.get(w.id) ?? 0,
+    autoDistribute: w.autoDistribute,
+    autoDistributeStrategy: w.autoDistributeStrategy as "equal" | "performance" | "experience",
   }));
 
   return (

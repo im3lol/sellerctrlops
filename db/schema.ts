@@ -98,6 +98,9 @@ export const workspaces = pgTable("workspaces", {
   description: text("description"),
   clientUserId: uuid("client_user_id").references(() => users.id, { onDelete: "set null" }),
   isArchived: boolean("is_archived").notNull().default(false),
+  // Auto-distribute newly-published products once no drafts remain.
+  autoDistribute: boolean("auto_distribute").notNull().default(false),
+  autoDistributeStrategy: distributionStrategyEnum("auto_distribute_strategy").notNull().default("equal"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

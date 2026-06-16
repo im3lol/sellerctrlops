@@ -57,6 +57,13 @@
       "when": 1781609071687,
       "tag": "0007_deep_night_thrasher",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781612114231,
+      "tag": "0008_windy_proteus",
+      "breakpoints": true
     }
   ]
 }

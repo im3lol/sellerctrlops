@@ -6,6 +6,7 @@ import {
   workspaceMembers,
   users,
   distributionRuns,
+  workspaces,
 } from "@/db/schema";
 import { notify, recordActivity } from "@/lib/activity";
 import { publish } from "@/lib/realtime";
@@ -62,6 +63,41 @@ export type DistributionResult = {
   perEmployee: Record<string, number>;
   error?: string;
 };
+
+/** Clear assignments for all published (non-draft) products in a workspace. */
+export async function resetAssignments(workspaceId: string): Promise<number> {
+  const cleared = await db
+    .update(products)
+    .set({ assignedTo: null, updatedAt: new Date() })
+    .where(and(eq(products.workspaceId, workspaceId), eq(products.isDraft, false)))
+    .returning({ id: products.id });
+  return cleared.length;
+}
+
+/**
+ * If the workspace has auto-distribute enabled and no drafts remain, distribute
+ * its unassigned published products. Best-effort: never throws to the caller.
+ */
+export async function maybeAutoDistribute(workspaceId: string, runById: string): Promise<void> {
+  try {
+    const [ws] = await db
+      .select({ auto: workspaces.autoDistribute, strategy: workspaces.autoDistributeStrategy })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1);
+    if (!ws?.auto) return;
+
+    const [{ drafts }] = await db
+      .select({ drafts: sql<number>`count(*) filter (where ${products.isDraft})::int` })
+      .from(products)
+      .where(eq(products.workspaceId, workspaceId));
+    if (drafts > 0) return; // still incomplete data — wait
+
+    await distributeWorkspace(workspaceId, ws.strategy as Strategy, runById);
+  } catch (err) {
+    console.error("[distribution] auto-distribute failed (ignored):", err);
+  }
+}
 
 /**
  * Distribute all unassigned products in a workspace across its employees

@@ -1,0 +1,2 @@
+ALTER TABLE "workspaces" ADD COLUMN "auto_distribute" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "workspaces" ADD COLUMN "auto_distribute_strategy" "distribution_strategy" DEFAULT 'equal' NOT NULL;
