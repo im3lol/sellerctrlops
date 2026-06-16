@@ -20,6 +20,7 @@ import { EditableField } from "@/components/products/editable-field";
 import { ActivityFeed } from "@/components/activity/activity-feed";
 import { CommentsSection } from "@/components/comments/comments-section";
 import { ListingButton } from "@/components/products/listing-button";
+import { ProductFormDialog } from "@/components/products/product-form-dialog";
 import { formatDateAr } from "@/lib/format";
 
 export default async function ProductDetailPage({
@@ -61,8 +62,33 @@ export default async function ProductDetailPage({
         {/* Main */}
         <div className="space-y-6 lg:col-span-2">
           <Card className="p-6">
-            <h1 className="text-xl font-bold">{p.name}</h1>
-            <p className="mt-1 font-mono text-sm text-muted-foreground" dir="ltr">{p.sku}</p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h1 className="text-xl font-bold">{p.name}</h1>
+                <p className="mt-1 font-mono text-sm text-muted-foreground" dir="ltr">{p.sku}</p>
+              </div>
+              {canEdit && (
+                <ProductFormDialog
+                  mode="edit"
+                  statuses={statusOptions}
+                  assignees={assignees}
+                  product={{
+                    id: p.id,
+                    workspaceId: p.workspaceId,
+                    name: p.name,
+                    description: p.description,
+                    features: p.features,
+                    sizes: p.sizes,
+                    price: p.price,
+                    imageUrl: p.imageUrl,
+                    galleryUrl: p.galleryUrl,
+                    productUrl: p.productUrl,
+                    statusId: p.statusId,
+                    assignedTo: p.assignedTo,
+                  }}
+                />
+              )}
+            </div>
 
             {/* Main image + gallery */}
             {p.imageUrl && (

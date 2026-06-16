@@ -21,6 +21,7 @@ import { WorkspaceTabBar } from "@/components/workspaces/workspace-tab-bar";
 import { ProductsTable } from "@/components/products/products-table";
 import { ProductsFilters } from "@/components/products/products-filters";
 import { ImportProductsDialog } from "@/components/products/import-products-dialog";
+import { ProductFormDialog } from "@/components/products/product-form-dialog";
 import { MembersPanel } from "@/components/workspaces/members-panel";
 import { ActivityFeed } from "@/components/activity/activity-feed";
 import { EmptyState } from "@/components/empty-state";
@@ -100,9 +101,14 @@ async function ProductsTabContent({
   const statusOptions = statuses.map((s) => ({ id: s.id, name: s.name, color: s.color }));
   return (
     <>
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <ProductsFilters statuses={statusOptions} assignees={assignees} />
-        {canImport && <ImportProductsDialog workspaceId={workspaceId} />}
+        {canImport && (
+          <div className="flex items-center gap-2">
+            <ProductFormDialog mode="create" workspaceId={workspaceId} statuses={statusOptions} assignees={assignees} />
+            <ImportProductsDialog workspaceId={workspaceId} />
+          </div>
+        )}
       </div>
       <ProductsTable rows={rows} statuses={statusOptions} assignees={assignees} canEdit={canEdit} />
     </>

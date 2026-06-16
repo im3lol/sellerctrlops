@@ -3,11 +3,12 @@ import { requireUser } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
-import { memberWorkspaceIds } from "@/lib/workspaces";
+import { memberWorkspaceIds, getAccessibleWorkspaces } from "@/lib/workspaces";
 import { listProducts, listStatuses, type ProductFilters } from "@/lib/queries/products";
 import { PageHeader } from "@/components/page-header";
 import { ProductsTable } from "@/components/products/products-table";
 import { ProductsFilters } from "@/components/products/products-filters";
+import { ProductFormDialog } from "@/components/products/product-form-dialog";
 
 export default async function ProductsPage({
   searchParams,
@@ -39,10 +40,16 @@ export default async function ProductsPage({
   ]);
 
   const statusOptions = statuses.map((s) => ({ id: s.id, name: s.name, color: s.color }));
+  const canAdd = can(user.role, "product.distribute");
+  const wsList = canAdd ? (await getAccessibleWorkspaces(user)).map((w) => ({ id: w.id, name: w.name })) : [];
 
   return (
     <div>
-      <PageHeader title="المنتجات" description={`${rows.length} منتج`} />
+      <PageHeader title="المنتجات" description={`${rows.length} منتج`}>
+        {canAdd && wsList.length > 0 && (
+          <ProductFormDialog mode="create" workspaces={wsList} statuses={statusOptions} assignees={employees} />
+        )}
+      </PageHeader>
       <ProductsFilters statuses={statusOptions} assignees={employees} />
       <ProductsTable
         rows={rows}

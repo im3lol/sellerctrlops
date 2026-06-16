@@ -1,15 +1,138 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
+import { z } from "zod";
 import { db, pool } from "@/lib/db";
 import { products, productStatuses, users } from "@/db/schema";
 import { requireUser } from "@/lib/session";
+import { canAccessWorkspace } from "@/lib/workspaces";
 import { can } from "@/lib/rbac";
 import { recordActivity, recordAudit, notify } from "@/lib/activity";
 import { publish } from "@/lib/realtime";
 
 const query = (text: string, params: unknown[]) => pool.query(text, params);
+
+export type ProductFormState = { error?: string; ok?: boolean };
+
+const productSchema = z.object({
+  name: z.string().min(1, "اسم المنتج مطلوب"),
+  description: z.string().optional(),
+  features: z.string().optional(),
+  sizes: z.string().optional(),
+  price: z.string().optional(),
+  imageUrl: z.string().optional(),
+  galleryUrl: z.string().optional(),
+  productUrl: z.string().optional(),
+  statusId: z.string().uuid().optional().or(z.literal("")),
+  assignedTo: z.string().uuid().optional().or(z.literal("")),
+});
+
+function readProductForm(formData: FormData) {
+  return productSchema.safeParse({
+    name: formData.get("name"),
+    description: formData.get("description") || undefined,
+    features: formData.get("features") || undefined,
+    sizes: formData.get("sizes") || undefined,
+    price: (formData.get("price") as string)?.replace(/[^\d.]/g, "") || undefined,
+    imageUrl: formData.get("imageUrl") || undefined,
+    galleryUrl: formData.get("galleryUrl") || undefined,
+    productUrl: formData.get("productUrl") || undefined,
+    statusId: formData.get("statusId") || "",
+    assignedTo: formData.get("assignedTo") || "",
+  });
+}
+
+/** Add a single product manually (admin/manager). */
+export async function createProductAction(_prev: ProductFormState, formData: FormData): Promise<ProductFormState> {
+  const user = await requireUser();
+  const workspaceId = String(formData.get("workspaceId") ?? "");
+  if (!can(user.role, "product.edit") || !workspaceId || !(await canAccessWorkspace(user, workspaceId))) {
+    return { error: "غير مصرّح أو مساحة عمل غير صالحة" };
+  }
+  const parsed = readProductForm(formData);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const d = parsed.data;
+
+  let statusId = d.statusId || null;
+  if (!statusId) {
+    const [def] = await db
+      .select({ id: productStatuses.id })
+      .from(productStatuses)
+      .where(and(isNull(productStatuses.workspaceId), eq(productStatuses.isDefault, true)))
+      .limit(1);
+    statusId = def?.id ?? null;
+  }
+
+  const [p] = await db
+    .insert(products)
+    .values({
+      workspaceId,
+      sku: `MAN-${Date.now()}`,
+      name: d.name,
+      description: d.description ?? null,
+      features: d.features ?? null,
+      sizes: d.sizes ?? null,
+      price: d.price ?? null,
+      imageUrl: d.imageUrl ?? null,
+      galleryUrl: d.galleryUrl ?? null,
+      productUrl: d.productUrl ?? null,
+      statusId,
+      assignedTo: d.assignedTo || null,
+    })
+    .returning();
+
+  if (d.assignedTo) {
+    await notify({ userId: d.assignedTo, type: "product_assigned", title: "تم تعيين منتج جديد لك", body: d.name, link: `/products/${p.id}` });
+  }
+  await recordActivity({ actorId: user.id, workspaceId, entityType: "product", entityId: p.id, action: "product.created", summaryAr: `${user.name} أضاف المنتج «${d.name}»` });
+  await publish(query, { channel: `workspace:${workspaceId}`, type: "product_updated", payload: { created: true } });
+  revalidatePath(`/workspaces/${workspaceId}`);
+  revalidatePath("/products");
+  return { ok: true };
+}
+
+/** Edit all product fields (locked + open). */
+export async function updateProductAction(_prev: ProductFormState, formData: FormData): Promise<ProductFormState> {
+  const user = await requireUser();
+  const productId = String(formData.get("productId") ?? "");
+  const before = await loadProduct(productId);
+  if (!before) return { error: "المنتج غير موجود" };
+  if (!can(user.role, "product.edit") || !(await canAccessWorkspace(user, before.workspaceId))) {
+    return { error: "غير مصرّح" };
+  }
+  const parsed = readProductForm(formData);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const d = parsed.data;
+  const [status] = d.statusId
+    ? await db.select().from(productStatuses).where(eq(productStatuses.id, d.statusId)).limit(1)
+    : [undefined];
+
+  await db
+    .update(products)
+    .set({
+      name: d.name,
+      description: d.description ?? null,
+      features: d.features ?? null,
+      sizes: d.sizes ?? null,
+      price: d.price ?? null,
+      imageUrl: d.imageUrl ?? null,
+      galleryUrl: d.galleryUrl ?? null,
+      productUrl: d.productUrl ?? null,
+      statusId: d.statusId || before.statusId,
+      assignedTo: d.assignedTo || null,
+      completedAt: status?.isTerminal ? before.completedAt ?? new Date() : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(products.id, productId));
+
+  await recordActivity({ actorId: user.id, workspaceId: before.workspaceId, entityType: "product", entityId: productId, action: "product.updated", summaryAr: `${user.name} عدّل بيانات المنتج «${d.name}»` });
+  await publish(query, { channel: `workspace:${before.workspaceId}`, type: "product_updated", payload: { productId } });
+  revalidatePath(`/products/${productId}`);
+  revalidatePath(`/workspaces/${before.workspaceId}`);
+  revalidatePath("/products");
+  return { ok: true };
+}
 
 async function loadProduct(id: string) {
   const [p] = await db.select().from(products).where(eq(products.id, id)).limit(1);
