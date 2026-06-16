@@ -8,6 +8,11 @@ const ALIASES: Record<string, string> = {
   AlertTriangle: "TriangleAlert",
   AlertCircle: "CircleAlert",
   XCircle: "CircleX",
+  BarChart3: "ChartColumn",
+  BarChart: "ChartColumn",
+  BarChart2: "ChartColumn",
+  LineChart: "ChartLine",
+  PieChart: "ChartPie",
 };
 
 /** Render a lucide icon by its name (e.g. "LayoutDashboard"). */
