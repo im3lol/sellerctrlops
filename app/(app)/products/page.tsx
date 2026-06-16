@@ -82,6 +82,7 @@ export default async function ProductsPage({
         canEdit={canEdit}
         canReview={canReview}
         canDelete={canAdd}
+        canAssign={canReview}
         showWorkspace
         showAssignee={user.role !== "employee"}
       />

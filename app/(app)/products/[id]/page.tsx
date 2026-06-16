@@ -180,7 +180,7 @@ export default async function ProductDetailPage({
                 productId={id}
                 assignedTo={p.assignedTo}
                 assignees={assignees}
-                disabled={!canEdit}
+                disabled={!canReview}
               />
             </div>
           </Card>

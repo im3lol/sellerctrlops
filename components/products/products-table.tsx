@@ -57,6 +57,7 @@ export function ProductsTable({
   canEdit,
   canReview = false,
   canDelete = false,
+  canAssign = false,
   showWorkspace = false,
   showAssignee = true,
 }: {
@@ -66,6 +67,7 @@ export function ProductsTable({
   canEdit: boolean;
   canReview?: boolean;
   canDelete?: boolean;
+  canAssign?: boolean;
   showWorkspace?: boolean;
   showAssignee?: boolean;
 }) {
@@ -295,7 +297,7 @@ export function ProductsTable({
                     productId={p.id}
                     assignedTo={p.assignedTo}
                     assignees={assignees}
-                    disabled={!canEdit}
+                    disabled={!canAssign}
                   />
                 </TableCell>
               )}

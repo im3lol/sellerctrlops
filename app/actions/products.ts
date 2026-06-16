@@ -379,7 +379,8 @@ export async function setProductStatusAction(productId: string, statusId: string
 
 export async function assignProductAction(productId: string, assigneeId: string | null) {
   const user = await requireUser();
-  if (!can(user.role, "product.edit")) throw new Error("forbidden");
+  // Assigning the responsible person is a management action (not for employees).
+  if (!can(user.role, "product.review")) throw new Error("forbidden");
   const before = await loadProduct(productId);
   if (!before) throw new Error("not found");
 
