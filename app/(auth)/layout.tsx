@@ -27,6 +27,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <Logo className="text-4xl text-primary" />
           </div>
           {children}
+          <div className="mt-6 flex items-center justify-center gap-3 text-xs text-muted-foreground">
+            <a href="/login" className="hover:text-foreground">الفريق</a>
+            <span>·</span>
+            <a href="/login/admin" className="hover:text-foreground">الإدارة</a>
+            <span>·</span>
+            <a href="/login/client" className="hover:text-foreground">العملاء</a>
+          </div>
         </div>
       </div>
     </div>

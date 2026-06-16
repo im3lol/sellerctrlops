@@ -19,16 +19,24 @@ function SubmitButton() {
   );
 }
 
-export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
+export function LoginForm({
+  callbackUrl,
+  title = "تسجيل الدخول",
+  subtitle = "أدخل بياناتك للوصول إلى مساحة العمل",
+  hint,
+}: {
+  callbackUrl?: string;
+  title?: string;
+  subtitle?: string;
+  hint?: string;
+}) {
   const [state, formAction] = useActionState<LoginState, FormData>(loginAction, {});
 
   return (
     <form action={formAction} className="space-y-5">
       <div className="space-y-2 text-center">
-        <h1 className="text-2xl font-bold">تسجيل الدخول</h1>
-        <p className="text-sm text-muted-foreground">
-          أدخل بياناتك للوصول إلى مساحة العمل
-        </p>
+        <h1 className="text-2xl font-bold">{title}</h1>
+        <p className="text-sm text-muted-foreground">{subtitle}</p>
       </div>
 
       {state.error && (
@@ -67,8 +75,9 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
 
       <SubmitButton />
 
+      {hint && <p className="text-center text-xs text-muted-foreground">{hint}</p>}
       <p className="text-center text-xs text-muted-foreground">
-        حساب تجريبي: admin@sellerctrl.com / password123
+        لا يوجد تسجيل ذاتي — للحصول على حساب تواصل مع الإدارة.
       </p>
     </form>
   );

@@ -3,8 +3,6 @@ import { authConfig } from "./auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_PATHS = ["/", "/login", "/register"];
-
 export default auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth;
@@ -12,7 +10,8 @@ export default auth((req) => {
   const path = nextUrl.pathname;
 
   const isPublic =
-    PUBLIC_PATHS.includes(path) ||
+    path === "/" ||
+    path.startsWith("/login") || // /login, /login/admin, /login/client
     path.startsWith("/api/auth") ||
     path.startsWith("/_next") ||
     path.startsWith("/brand");
@@ -36,8 +35,8 @@ export default auth((req) => {
     if (!isClient && onPortal) {
       return Response.redirect(new URL("/dashboard", nextUrl));
     }
-    // Already-authed users on auth pages → dashboard/portal.
-    if (path === "/login" || path === "/register") {
+    // Already-authed users on any login page → their area.
+    if (path.startsWith("/login")) {
       return Response.redirect(new URL(isClient ? "/portal" : "/dashboard", nextUrl));
     }
   }
