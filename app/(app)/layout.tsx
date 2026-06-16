@@ -24,7 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen bg-muted/30">
       <Sidebar role={user.role as Role} />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
         <Topbar
           user={{
             name: user.name,
@@ -36,7 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           unreadCount={count ?? 0}
           attendance={attendanceSnap}
         />
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
         <PollRefresh />
       </div>
     </div>

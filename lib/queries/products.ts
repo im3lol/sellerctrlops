@@ -1,6 +1,8 @@
-import { and, eq, or, ilike, isNull, inArray, desc } from "drizzle-orm";
+import { and, eq, or, ilike, isNull, isNotNull, inArray, desc, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { products, productStatuses, users, workspaces, workspaceMembers } from "@/db/schema";
+
+export const PRODUCTS_PER_PAGE = 20;
 
 export type ProductFilters = {
   workspaceId?: string;
@@ -11,19 +13,26 @@ export type ProductFilters = {
   // Draft = incomplete data, hidden from employees until completed & confirmed.
   // "exclude" (default): published only. "only": drafts only. "all": both.
   draft?: "exclude" | "only" | "all";
+  // Only products whose core fields (name+image+price) are filled ("ready").
+  ready?: boolean;
 };
 
 const assignee = users;
 
-export async function listProducts(filters: ProductFilters, limit = 200) {
+/** Build the WHERE conditions shared by listProducts + countProducts. Returns
+ *  null when the filter set is provably empty (e.g. no accessible workspaces). */
+function buildConds(filters: ProductFilters): unknown[] | null {
   const conds = [];
   if (filters.workspaceId) conds.push(eq(products.workspaceId, filters.workspaceId));
   else if (filters.workspaceIds) {
-    if (filters.workspaceIds.length === 0) return [];
+    if (filters.workspaceIds.length === 0) return null;
     conds.push(inArray(products.workspaceId, filters.workspaceIds));
   }
   if (filters.draft === "only") conds.push(eq(products.isDraft, true));
   else if (filters.draft !== "all") conds.push(eq(products.isDraft, false));
+  if (filters.ready) {
+    conds.push(isNotNull(products.imageUrl), isNotNull(products.price));
+  }
   if (filters.statusId) conds.push(eq(products.statusId, filters.statusId));
   if (filters.assignedTo === "unassigned") conds.push(isNull(products.assignedTo));
   else if (filters.assignedTo) conds.push(eq(products.assignedTo, filters.assignedTo));
@@ -31,6 +40,23 @@ export async function listProducts(filters: ProductFilters, limit = 200) {
     const q = `%${filters.search}%`;
     conds.push(or(ilike(products.name, q), ilike(products.sku, q), ilike(products.asin, q)));
   }
+  return conds;
+}
+
+/** Total count matching the filters (for pagination). */
+export async function countProducts(filters: ProductFilters): Promise<number> {
+  const conds = buildConds(filters);
+  if (conds === null) return 0;
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(products)
+    .where(conds.length ? and(...(conds as never[])) : undefined);
+  return row?.count ?? 0;
+}
+
+export async function listProducts(filters: ProductFilters, limit = 200, offset = 0) {
+  const conds = buildConds(filters);
+  if (conds === null) return [];
 
   return db
     .select({
@@ -59,9 +85,10 @@ export async function listProducts(filters: ProductFilters, limit = 200) {
     .leftJoin(productStatuses, eq(products.statusId, productStatuses.id))
     .leftJoin(assignee, eq(products.assignedTo, assignee.id))
     .leftJoin(workspaces, eq(products.workspaceId, workspaces.id))
-    .where(conds.length ? and(...conds) : undefined)
+    .where(conds.length ? and(...(conds as never[])) : undefined)
     .orderBy(desc(products.updatedAt))
-    .limit(limit);
+    .limit(limit)
+    .offset(offset);
 }
 
 export type ProductRow = Awaited<ReturnType<typeof listProducts>>[number];

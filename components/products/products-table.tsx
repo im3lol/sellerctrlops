@@ -103,14 +103,14 @@ export function ProductsTable({
               onClick={() => selectMany(draftIds)}
               className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium hover:bg-accent/70"
             >
-              تحديد كل المسودات ({draftIds.length})
+              تحديد مسودات الصفحة ({draftIds.length})
             </button>
             <button
               type="button"
               onClick={() => selectMany(readyIds)}
               className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium hover:bg-accent/70"
             >
-              تحديد الجاهزة ({readyIds.length})
+              تحديد الجاهزة بالصفحة ({readyIds.length})
             </button>
             {selected.size > 0 && (
               <button

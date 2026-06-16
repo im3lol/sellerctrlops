@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, isNull, inArray } from "drizzle-orm";
+import { and, eq, isNull, isNotNull, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db, pool } from "@/lib/db";
 import { products, productStatuses, users } from "@/db/schema";
@@ -230,6 +230,54 @@ export async function publishProductsAction(ids: string[]): Promise<{ ok: boolea
     revalidatePath("/products");
   }
   return { ok: true, published };
+}
+
+/**
+ * Confirm ALL "ready" drafts in a workspace (beyond the current page). Ready =
+ * core fields filled (name + image + price). Reviewer + workspace-access gated.
+ */
+export async function publishWorkspaceReadyDraftsAction(
+  workspaceId: string,
+): Promise<{ ok: boolean; published?: number; error?: string }> {
+  const user = await requireUser();
+  if (!can(user.role, "product.review")) return { ok: false, error: "غير مصرّح" };
+  if (!(await canAccessWorkspace(user, workspaceId))) return { ok: false, error: "غير مصرّح" };
+
+  const rows = await db
+    .select({ id: products.id, assignedTo: products.assignedTo, name: products.name })
+    .from(products)
+    .where(
+      and(
+        eq(products.workspaceId, workspaceId),
+        eq(products.isDraft, true),
+        isNotNull(products.name),
+        isNotNull(products.imageUrl),
+        isNotNull(products.price),
+      ),
+    );
+  if (rows.length === 0) return { ok: true, published: 0 };
+
+  await db
+    .update(products)
+    .set({ isDraft: false, updatedAt: new Date() })
+    .where(inArray(products.id, rows.map((r) => r.id)));
+
+  for (const r of rows) {
+    if (r.assignedTo) {
+      await notify({ userId: r.assignedTo, type: "product_assigned", title: "منتج جاهز للعمل", body: r.name, link: `/products/${r.id}` });
+    }
+  }
+  await recordActivity({
+    actorId: user.id,
+    workspaceId,
+    entityType: "product",
+    action: "products.published",
+    summaryAr: `${user.name} أكّد ${rows.length} منتج جاهز وأتاحها للموظفين`,
+  });
+  await publish(query, { channel: `workspace:${workspaceId}`, type: "product_updated", payload: { bulkPublished: true } });
+  revalidatePath(`/workspaces/${workspaceId}`);
+  revalidatePath("/products");
+  return { ok: true, published: rows.length };
 }
 
 async function loadProduct(id: string) {

@@ -9,8 +9,10 @@ import { publicUrl } from "@/lib/storage";
 import { FileManager } from "@/components/files/file-manager";
 import {
   listProducts,
+  countProducts,
   listStatuses,
   workspaceAssignees,
+  PRODUCTS_PER_PAGE,
 } from "@/lib/queries/products";
 import { getWorkspaceStats } from "@/lib/queries/workspace-stats";
 import { listWorkspaceActivity } from "@/lib/queries/activity";
@@ -22,6 +24,8 @@ import { ProductsTable } from "@/components/products/products-table";
 import { ProductsFilters } from "@/components/products/products-filters";
 import { ImportProductsDialog } from "@/components/products/import-products-dialog";
 import { ProductFormDialog } from "@/components/products/product-form-dialog";
+import { ProductsPagination } from "@/components/products/products-pagination";
+import { ConfirmAllDrafts } from "@/components/products/confirm-all-drafts";
 import { MembersPanel } from "@/components/workspaces/members-panel";
 import { ActivityFeed } from "@/components/activity/activity-feed";
 import { EmptyState } from "@/components/empty-state";
@@ -91,22 +95,43 @@ async function ProductsTabContent({
   canImport: boolean;
   canReview: boolean;
 }) {
-  const [rows, statuses, assignees] = await Promise.all([
-    listProducts({
-      workspaceId,
-      statusId: filters.statusId,
-      assignedTo: filters.assignedTo,
-      search: filters.search,
-      draft: canReview ? "all" : "exclude",
-    }),
+  const pf: {
+    workspaceId: string;
+    statusId?: string;
+    assignedTo?: string;
+    search?: string;
+    draft: "all" | "exclude" | "only";
+    ready?: boolean;
+  } = {
+    workspaceId,
+    statusId: filters.statusId,
+    assignedTo: filters.assignedTo,
+    search: filters.search,
+    draft: canReview ? "all" : "exclude",
+  };
+  if (canReview) {
+    if (filters.view === "drafts") pf.draft = "only";
+    else if (filters.view === "ready") {
+      pf.draft = "only";
+      pf.ready = true;
+    } else if (filters.view === "published") pf.draft = "exclude";
+  }
+  const page = Math.max(1, Number(filters.page) || 1);
+  const offset = (page - 1) * PRODUCTS_PER_PAGE;
+
+  const [rows, total, readyDraftCount, statuses, assignees] = await Promise.all([
+    listProducts(pf, PRODUCTS_PER_PAGE, offset),
+    countProducts(pf),
+    canReview ? countProducts({ workspaceId, draft: "only", ready: true }) : Promise.resolve(0),
     listStatuses(workspaceId),
     workspaceAssignees(workspaceId),
   ]);
+  const totalPages = Math.max(1, Math.ceil(total / PRODUCTS_PER_PAGE));
   const statusOptions = statuses.map((s) => ({ id: s.id, name: s.name, color: s.color }));
   return (
     <>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <ProductsFilters statuses={statusOptions} assignees={assignees} />
+        <ProductsFilters statuses={statusOptions} assignees={assignees} showDraftFilter={canReview} />
         {canImport && (
           <div className="flex items-center gap-2">
             <ProductFormDialog mode="create" workspaceId={workspaceId} statuses={statusOptions} assignees={assignees} />
@@ -114,7 +139,9 @@ async function ProductsTabContent({
           </div>
         )}
       </div>
+      {canReview && <ConfirmAllDrafts workspaceId={workspaceId} readyCount={readyDraftCount} />}
       <ProductsTable rows={rows} statuses={statusOptions} assignees={assignees} canEdit={canEdit} canReview={canReview} />
+      <ProductsPagination page={page} totalPages={totalPages} total={total} perPage={PRODUCTS_PER_PAGE} />
     </>
   );
 }

@@ -16,9 +16,11 @@ import type { StatusOption, AssigneeOption } from "@/components/products/inline-
 export function ProductsFilters({
   statuses,
   assignees,
+  showDraftFilter = false,
 }: {
   statuses: StatusOption[];
   assignees: AssigneeOption[];
+  showDraftFilter?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -29,6 +31,7 @@ export function ProductsFilters({
     const next = new URLSearchParams(params.toString());
     if (value && value !== "all") next.set(key, value);
     else next.delete(key);
+    next.delete("page"); // any filter change returns to page 1
     router.replace(`${pathname}?${next.toString()}`);
   };
 
@@ -47,6 +50,23 @@ export function ProductsFilters({
           }}
         />
       </div>
+
+      {showDraftFilter && (
+        <Select
+          defaultValue={params.get("view") ?? "all"}
+          onValueChange={(v) => setParam("view", v)}
+        >
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="العرض" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">الكل</SelectItem>
+            <SelectItem value="drafts">المسودات فقط</SelectItem>
+            <SelectItem value="ready">الجاهزة فقط</SelectItem>
+            <SelectItem value="published">المنشورة فقط</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
 
       <Select
         defaultValue={params.get("statusId") ?? "all"}
