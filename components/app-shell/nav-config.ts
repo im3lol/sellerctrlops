@@ -41,6 +41,7 @@ export const NAV: NavSection[] = [
       // Google Sheets sync hidden for now (Excel import is used instead) — coming soon.
       // { label: "ربط Google Sheets", href: "/admin/sheets", icon: "Sheet", capability: "sheets.connect" },
       { label: "توزيع المنتجات", href: "/admin/distribution", icon: "Shuffle", capability: "product.distribute" },
+      { label: "السحب الذكي", href: "/admin/scraping", icon: "Bot", capability: "product.review" },
       { label: "سجل التدقيق", href: "/admin/audit", icon: "ShieldCheck", capability: "role.manage" },
     ],
   },

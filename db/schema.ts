@@ -368,6 +368,61 @@ export const distributionRuns = pgTable("distribution_runs", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/* ─────────── Web scraping & automation (axiom-style) ────── */
+
+// A reusable "recipe": maps product fields -> CSS selectors captured via the
+// Edge extension's interactive picker. fields: { name: {selector, attr}, ... }
+export const scrapeRecipes = pgTable("scrape_recipes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  // origin host the recipe was built on (e.g. milano-accessories.com) — info only
+  originHost: text("origin_host"),
+  fields: jsonb("fields")
+    .$type<Record<string, { selector: string; attr: string }>>()
+    .notNull()
+    .default({}),
+  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// A batch run. The Docker Playwright worker claims pending jobs, scrapes each
+// item's URL with the recipe selectors, and posts results back one-by-one.
+export const scrapeJobs = pgTable(
+  "scrape_jobs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    recipeId: uuid("recipe_id").references(() => scrapeRecipes.id, { onDelete: "set null" }),
+    // snapshot of the recipe selectors at job creation
+    fields: jsonb("fields")
+      .$type<Record<string, { selector: string; attr: string }>>()
+      .notNull()
+      .default({}),
+    // products to scrape: [{ id, url }]
+    items: jsonb("items").$type<{ id: string; url: string }[]>().notNull().default([]),
+    status: text("status").notNull().default("pending"), // pending | running | done | error
+    total: integer("total").notNull().default(0),
+    done: integer("done").notNull().default(0), // items processed (ok or failed)
+    updatedCount: integer("updated_count").notNull().default(0), // items that got new data
+    lastError: text("last_error"),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("scrape_jobs_status_idx").on(t.status),
+    index("scrape_jobs_workspace_idx").on(t.workspaceId),
+  ],
+);
+
 /* ───────────────────── Relations ────────────────────────── */
 
 export const usersRelations = relations(users, ({ many }) => ({

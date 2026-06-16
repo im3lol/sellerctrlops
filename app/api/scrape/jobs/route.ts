@@ -1,0 +1,112 @@
+import { and, desc, eq, isNotNull, ne, inArray } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { scrapeJobs, scrapeRecipes, products } from "@/db/schema";
+import { getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/rbac";
+import { canAccessWorkspace } from "@/lib/workspaces";
+import { scraperTokenOk, sanitizeFields, corsPreflight, jsonCors, type RecipeFields } from "@/lib/scrape";
+
+export const runtime = "nodejs";
+
+export function OPTIONS() {
+  return corsPreflight();
+}
+
+async function authorize(req: Request, workspaceId: string): Promise<{ ok: boolean; userId: string | null }> {
+  if (scraperTokenOk(req)) return { ok: true, userId: null };
+  const user = await getCurrentUser();
+  if (user && can(user.role, "product.review") && (await canAccessWorkspace(user, workspaceId))) {
+    return { ok: true, userId: user.id };
+  }
+  return { ok: false, userId: null };
+}
+
+/** List recent jobs for a workspace. */
+export async function GET(req: Request) {
+  const workspaceId = new URL(req.url).searchParams.get("workspaceId");
+  if (!workspaceId) return jsonCors({ error: "workspaceId required" }, 400);
+  const { ok } = await authorize(req, workspaceId);
+  if (!ok) return jsonCors({ error: "unauthorized" }, 401);
+
+  const rows = await db
+    .select({
+      id: scrapeJobs.id,
+      status: scrapeJobs.status,
+      total: scrapeJobs.total,
+      done: scrapeJobs.done,
+      updatedCount: scrapeJobs.updatedCount,
+      lastError: scrapeJobs.lastError,
+      createdAt: scrapeJobs.createdAt,
+      finishedAt: scrapeJobs.finishedAt,
+    })
+    .from(scrapeJobs)
+    .where(eq(scrapeJobs.workspaceId, workspaceId))
+    .orderBy(desc(scrapeJobs.createdAt))
+    .limit(20);
+  return jsonCors({ jobs: rows });
+}
+
+/**
+ * Create a scrape job. Snapshots the recipe selectors and the target draft
+ * products (those with a URL). The Docker worker then picks it up.
+ * Body: { workspaceId, recipeId?, fields?, productIds? }
+ */
+export async function POST(req: Request) {
+  let body: { workspaceId?: string; recipeId?: string; fields?: unknown; productIds?: string[] };
+  try {
+    body = await req.json();
+  } catch {
+    return jsonCors({ error: "invalid json" }, 400);
+  }
+  const workspaceId = String(body.workspaceId ?? "");
+  if (!workspaceId) return jsonCors({ error: "workspaceId required" }, 400);
+  const { ok, userId } = await authorize(req, workspaceId);
+  if (!ok) return jsonCors({ error: "unauthorized" }, 401);
+
+  // Resolve the selectors: from a saved recipe, or inline fields.
+  let fields: RecipeFields = sanitizeFields(body.fields);
+  if (body.recipeId) {
+    const [r] = await db
+      .select()
+      .from(scrapeRecipes)
+      .where(and(eq(scrapeRecipes.id, body.recipeId), eq(scrapeRecipes.workspaceId, workspaceId)))
+      .limit(1);
+    if (r) fields = r.fields;
+  }
+  if (Object.keys(fields).length === 0) return jsonCors({ error: "no selectors (recipeId or fields)" }, 400);
+
+  // Target products: explicit ids or all draft products in the workspace with a URL.
+  const conds = [
+    eq(products.workspaceId, workspaceId),
+    eq(products.isDraft, true),
+    isNotNull(products.productUrl),
+    ne(products.productUrl, ""),
+  ];
+  if (body.productIds?.length) conds.push(inArray(products.id, body.productIds));
+
+  const targets = await db
+    .select({ id: products.id, url: products.productUrl })
+    .from(products)
+    .where(and(...conds));
+
+  const items = targets
+    .filter((t): t is { id: string; url: string } => !!t.url)
+    .map((t) => ({ id: t.id, url: t.url }));
+
+  if (items.length === 0) return jsonCors({ error: "لا توجد منتجات مسودة بلينك للسحب" }, 400);
+
+  const [job] = await db
+    .insert(scrapeJobs)
+    .values({
+      workspaceId,
+      recipeId: body.recipeId ?? null,
+      fields,
+      items,
+      total: items.length,
+      status: "pending",
+      createdById: userId,
+    })
+    .returning({ id: scrapeJobs.id });
+
+  return jsonCors({ jobId: job.id, total: items.length });
+}

@@ -29,6 +29,13 @@
       "when": 1781597906746,
       "tag": "0003_silent_dust",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781598971684,
+      "tag": "0004_fat_king_bedlam",
+      "breakpoints": true
     }
   ]
 }
