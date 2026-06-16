@@ -13,6 +13,7 @@ export default auth((req) => {
     path === "/" ||
     path.startsWith("/login") || // /login, /login/admin, /login/client
     path.startsWith("/api/auth") ||
+    path.startsWith("/api/scrape") || // token-authed (Edge extension + Docker worker); routes enforce auth
     path.startsWith("/_next") ||
     path.startsWith("/brand");
 
