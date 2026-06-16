@@ -8,6 +8,9 @@ export type ProductFilters = {
   statusId?: string;
   assignedTo?: string;
   search?: string;
+  // Draft = incomplete data, hidden from employees until completed & confirmed.
+  // "exclude" (default): published only. "only": drafts only. "all": both.
+  draft?: "exclude" | "only" | "all";
 };
 
 const assignee = users;
@@ -19,6 +22,8 @@ export async function listProducts(filters: ProductFilters, limit = 200) {
     if (filters.workspaceIds.length === 0) return [];
     conds.push(inArray(products.workspaceId, filters.workspaceIds));
   }
+  if (filters.draft === "only") conds.push(eq(products.isDraft, true));
+  else if (filters.draft !== "all") conds.push(eq(products.isDraft, false));
   if (filters.statusId) conds.push(eq(products.statusId, filters.statusId));
   if (filters.assignedTo === "unassigned") conds.push(isNull(products.assignedTo));
   else if (filters.assignedTo) conds.push(eq(products.assignedTo, filters.assignedTo));
@@ -41,6 +46,7 @@ export async function listProducts(filters: ProductFilters, limit = 200) {
       notes: products.notes,
       amazonCode: products.amazonCode,
       assignedTo: products.assignedTo,
+      isDraft: products.isDraft,
       updatedAt: products.updatedAt,
       statusId: products.statusId,
       statusName: productStatuses.name,

@@ -2,10 +2,12 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Download, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Upload, Download, FileSpreadsheet, Loader2, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { importProductsAction } from "@/app/actions/import";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +20,7 @@ import {
 export function ImportProductsDialog({ workspaceId }: { workspaceId: string }) {
   const [open, setOpen] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [draft, setDraft] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -28,10 +31,15 @@ export function ImportProductsDialog({ workspaceId }: { workspaceId: string }) {
     setFileName(file.name);
     const fd = new FormData();
     fd.append("file", file);
+    if (draft) fd.append("draft", "1");
     start(async () => {
       const res = await importProductsAction(workspaceId, fd);
       if (res.ok) {
-        toast.success(`تم استيراد ${res.imported} منتج`);
+        toast.success(
+          draft
+            ? `تم استيراد ${res.imported} منتج كمسودة — مخفية عن الموظفين حتى التأكيد`
+            : `تم استيراد ${res.imported} منتج`,
+        );
         setOpen(false);
         setFileName(null);
         router.refresh();
@@ -72,8 +80,23 @@ export function ImportProductsDialog({ workspaceId }: { workspaceId: string }) {
             </Button>
           </div>
 
+          <div className="flex items-start justify-between gap-3 rounded-xl border p-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="draft-mode" className="flex items-center gap-1.5 text-sm font-medium">
+                <EyeOff className="size-4" />
+                وضع البيانات الناقصة (مسودة)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                لو العميل أرسل لينك المنتج أو بيانات ناقصة فقط — تُضاف المنتجات لكن تظل مخفية عن الموظفين حتى تُكمل البيانات وتُؤكَّد.
+              </p>
+            </div>
+            <Switch id="draft-mode" checked={draft} onCheckedChange={setDraft} />
+          </div>
+
           <div className="rounded-xl border border-dashed p-6 text-center">
-            <p className="mb-3 text-sm font-medium">٢. ارفع الملف بعد تعبئته</p>
+            <p className="mb-3 text-sm font-medium">
+              {draft ? "٢. ارفع الملف (سيُضاف كمسودة)" : "٢. ارفع الملف بعد تعبئته"}
+            </p>
             <input
               ref={inputRef}
               type="file"

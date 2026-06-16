@@ -67,6 +67,7 @@ export default async function WorkspaceDetailPage({
           filters={sp}
           canEdit={canEdit}
           canImport={can(user.role, "product.distribute")}
+          canReview={can(user.role, "product.review")}
         />
       )}
       {tab === "team" && <TeamTabContent workspaceId={id} canManage={canManage} />}
@@ -82,11 +83,13 @@ async function ProductsTabContent({
   filters,
   canEdit,
   canImport,
+  canReview,
 }: {
   workspaceId: string;
   filters: Record<string, string>;
   canEdit: boolean;
   canImport: boolean;
+  canReview: boolean;
 }) {
   const [rows, statuses, assignees] = await Promise.all([
     listProducts({
@@ -94,6 +97,7 @@ async function ProductsTabContent({
       statusId: filters.statusId,
       assignedTo: filters.assignedTo,
       search: filters.search,
+      draft: canReview ? "all" : "exclude",
     }),
     listStatuses(workspaceId),
     workspaceAssignees(workspaceId),

@@ -80,7 +80,14 @@ export async function distributeWorkspace(
   const unassigned = await db
     .select({ id: products.id })
     .from(products)
-    .where(and(eq(products.workspaceId, workspaceId), isNull(products.assignedTo)));
+    .where(
+      and(
+        eq(products.workspaceId, workspaceId),
+        isNull(products.assignedTo),
+        // Never distribute draft (incomplete-data) products to employees.
+        eq(products.isDraft, false),
+      ),
+    );
 
   if (unassigned.length === 0) {
     return { ok: false, assigned: 0, perEmployee: {}, error: "لا توجد منتجات غير معيّنة" };

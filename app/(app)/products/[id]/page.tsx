@@ -21,6 +21,7 @@ import { ActivityFeed } from "@/components/activity/activity-feed";
 import { CommentsSection } from "@/components/comments/comments-section";
 import { ListingButton } from "@/components/products/listing-button";
 import { ProductFormDialog } from "@/components/products/product-form-dialog";
+import { DraftConfirmBanner } from "@/components/products/draft-confirm-banner";
 import { formatDateAr } from "@/lib/format";
 
 export default async function ProductDetailPage({
@@ -37,6 +38,9 @@ export default async function ProductDetailPage({
   if (!(await canAccessWorkspace(user, p.workspaceId))) notFound();
 
   const canEdit = can(user.role, "product.edit");
+  const canReview = can(user.role, "product.review");
+  // Draft products are hidden from non-reviewers (employees/clients) until confirmed.
+  if (p.isDraft && !canReview) notFound();
   const [statuses, assignees, history] = await Promise.all([
     listStatuses(p.workspaceId),
     workspaceAssignees(p.workspaceId),
@@ -57,6 +61,8 @@ export default async function ProductDetailPage({
         <ChevronRight className="size-4 rotate-180" />
         <span className="text-foreground">{p.name}</span>
       </nav>
+
+      {p.isDraft && canReview && <DraftConfirmBanner productId={id} />}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main */}

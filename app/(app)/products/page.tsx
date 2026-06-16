@@ -19,11 +19,15 @@ export default async function ProductsPage({
   const sp = await searchParams;
   const manager = can(user.role, "workspace.viewAll");
   const canEdit = can(user.role, "product.edit");
+  const canReview = can(user.role, "product.review");
 
   const filters: ProductFilters = {
     statusId: sp.statusId,
     assignedTo: sp.assignedTo,
     search: sp.search,
+    // Reviewers (managers/leads) see drafts too so they can complete & confirm them;
+    // employees/clients only ever see published products.
+    draft: canReview ? "all" : "exclude",
   };
   // Employees see ONLY products assigned to them; team leads/others see their
   // workspaces; managers see everything.

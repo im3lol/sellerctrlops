@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ExternalLink } from "lucide-react";
+import { useTransition } from "react";
+import { ExternalLink, CheckCircle2, Loader2, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 import {
   Table,
   TableBody,
@@ -11,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import {
   ProductStatusSelect,
   ProductAssigneeSelect,
@@ -20,6 +23,7 @@ import {
 import { ProductThumb } from "@/components/products/product-thumb";
 import { InlineFieldEdit } from "@/components/products/inline-field-edit";
 import { ListingButton } from "@/components/products/listing-button";
+import { publishProductAction } from "@/app/actions/products";
 import { useRealtime } from "@/components/realtime/use-realtime";
 import type { ProductRow } from "@/lib/queries/products";
 
@@ -73,6 +77,12 @@ export function ProductsTable({
                   <Link href={`/products/${p.id}`} className="truncate font-medium hover:text-primary">
                     {p.name}
                   </Link>
+                  {p.isDraft && (
+                    <Badge variant="outline" className="shrink-0 gap-1 border-amber-300 bg-amber-50 text-amber-700">
+                      <EyeOff className="size-3" />
+                      مسودة
+                    </Badge>
+                  )}
                   {p.productUrl && (
                     <a
                       href={p.productUrl}
@@ -119,6 +129,7 @@ export function ProductsTable({
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-0.5">
+                  {canEdit && p.isDraft && <PublishButton productId={p.id} />}
                   <ListingButton productId={p.id} variant="icon" />
                   <Link
                     href={`/products/${p.id}`}
@@ -137,5 +148,27 @@ export function ProductsTable({
         <div className="py-12 text-center text-sm text-muted-foreground">لا توجد منتجات</div>
       )}
     </div>
+  );
+}
+
+/** Confirm a draft product → makes it visible to employees. */
+function PublishButton({ productId }: { productId: string }) {
+  const [pending, start] = useTransition();
+  return (
+    <button
+      type="button"
+      title="تأكيد البيانات وإتاحة المنتج للموظفين"
+      disabled={pending}
+      onClick={() =>
+        start(async () => {
+          const res = await publishProductAction(productId);
+          if (res.ok) toast.success("تم تأكيد المنتج وإتاحته للموظفين");
+          else toast.error(res.error ?? "تعذّر التأكيد");
+        })
+      }
+      className="grid size-8 place-items-center rounded-lg text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50"
+    >
+      {pending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+    </button>
   );
 }

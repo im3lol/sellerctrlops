@@ -138,6 +138,51 @@ export async function updateProductAction(_prev: ProductFormState, formData: For
   return { ok: true };
 }
 
+/**
+ * Confirm a draft product: completes the incomplete-data review and makes the
+ * product visible to employees. Only managers/leads with edit rights.
+ */
+export async function publishProductAction(productId: string): Promise<ProductFormState> {
+  const user = await requireUser();
+  if (!can(user.role, "product.review")) return { error: "غير مصرّح" };
+  const before = await loadProduct(productId);
+  if (!before) return { error: "المنتج غير موجود" };
+  if (!(await canAccessWorkspace(user, before.workspaceId))) return { error: "غير مصرّح" };
+  if (!before.isDraft) return { ok: true }; // already published
+
+  await db
+    .update(products)
+    .set({ isDraft: false, updatedAt: new Date() })
+    .where(eq(products.id, productId));
+
+  await recordActivity({
+    actorId: user.id,
+    workspaceId: before.workspaceId,
+    entityType: "product",
+    entityId: productId,
+    action: "product.published",
+    summaryAr: `${user.name} أكّد بيانات المنتج «${before.name}» وأتاحه للموظفين`,
+  });
+  if (before.assignedTo) {
+    await notify({
+      userId: before.assignedTo,
+      type: "product_assigned",
+      title: "منتج جاهز للعمل",
+      body: before.name,
+      link: `/products/${productId}`,
+    });
+  }
+  await publish(query, {
+    channel: `workspace:${before.workspaceId}`,
+    type: "product_updated",
+    payload: { productId, published: true },
+  });
+  revalidatePath(`/products/${productId}`);
+  revalidatePath(`/workspaces/${before.workspaceId}`);
+  revalidatePath("/products");
+  return { ok: true };
+}
+
 async function loadProduct(id: string) {
   const [p] = await db.select().from(products).where(eq(products.id, id)).limit(1);
   return p ?? null;

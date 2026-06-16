@@ -46,6 +46,10 @@ export async function importProductsAction(
   }
   if (rows.length === 0) return { ok: false, error: "لا توجد صفوف صالحة (تأكد من عمود «اسم المنتج»)" };
 
+  // Draft mode: products with incomplete data are saved hidden from employees
+  // until a manager completes the data and confirms (publishes) them.
+  const draft = formData.get("draft") === "1" || formData.get("draft") === "true";
+
   const statusId = await defaultStatusId();
   const stamp = Date.now();
   let imported = 0;
@@ -63,6 +67,7 @@ export async function importProductsAction(
     productUrl: r.productUrl ?? null,
     price: r.price ? r.price.replace(/[^\d.]/g, "") || null : null,
     statusId,
+    isDraft: draft,
   }));
 
   // Insert in chunks to keep statements small.
@@ -77,7 +82,9 @@ export async function importProductsAction(
     workspaceId,
     entityType: "product",
     action: "products.imported",
-    summaryAr: `${user.name} استورد ${imported} منتج من ملف Excel`,
+    summaryAr: draft
+      ? `${user.name} استورد ${imported} منتج كمسودة (بيانات ناقصة) من ملف Excel`
+      : `${user.name} استورد ${imported} منتج من ملف Excel`,
   });
   await publish(query, { channel: `workspace:${workspaceId}`, type: "product_updated", payload: { imported } });
 

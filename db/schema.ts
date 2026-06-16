@@ -166,6 +166,8 @@ export const products = pgTable(
     // Sync bookkeeping
     sheetRowRef: text("sheet_row_ref"), // stable id of the source row
     images: jsonb("images").$type<string[]>().default([]),
+    // Draft = incomplete data: hidden from employees until completed & confirmed.
+    isDraft: boolean("is_draft").notNull().default(false),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
