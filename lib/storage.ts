@@ -7,9 +7,17 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 /**
- * Object storage on MinIO (S3-compatible) — replaces Supabase Storage.
- * `forcePathStyle` is required for MinIO.
+ * Object storage with two backends:
+ *  - Supabase Storage REST (when SUPABASE_URL + SUPABASE_SERVICE_KEY are set) — used on Vercel.
+ *  - MinIO / S3-compatible (via AWS SDK) — used for local Docker.
  */
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const SUPABASE_BUCKET = process.env.SUPABASE_BUCKET ?? "sellerctrl";
+const useSupabase = !!(SUPABASE_URL && SUPABASE_SERVICE_KEY);
+
+// ── S3 / MinIO (local) ──
 const endpoint = process.env.S3_ENDPOINT ?? "http://localhost:9000";
 const bucket = process.env.S3_BUCKET ?? "sellerctrl";
 
@@ -25,37 +33,58 @@ export const s3 = new S3Client({
 
 export { bucket as storageBucket };
 
-/** Presigned URL the browser can PUT a file to directly. */
-export async function presignUpload(key: string, contentType: string, expiresIn = 600) {
-  const cmd = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType });
-  return getSignedUrl(s3, cmd, { expiresIn });
-}
-
-/** Presigned URL for downloading / viewing a private object. */
-export async function presignDownload(key: string, expiresIn = 600) {
-  const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
-  return getSignedUrl(s3, cmd, { expiresIn });
-}
-
-/** Server-side upload (used by the proxy upload route). */
-export async function putObject(key: string, body: Buffer | Uint8Array, contentType: string) {
-  await s3.send(
-    new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }),
-  );
-  return key;
-}
-
-export async function deleteObject(key: string) {
-  await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
-}
-
 export function buildStorageKey(workspaceId: string, filename: string) {
   const safe = filename.replace(/[^\w.\-]+/g, "_");
   return `workspaces/${workspaceId}/${Date.now()}-${safe}`;
 }
 
-/** Browser-reachable URL for an object (bucket is download-public in dev). */
+/** Server-side upload. */
+export async function putObject(key: string, body: Buffer | Uint8Array, contentType: string) {
+  if (useSupabase) {
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${key}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+        apikey: SUPABASE_SERVICE_KEY!,
+        "Content-Type": contentType,
+        "x-upsert": "true",
+        "cache-control": "3600",
+      },
+      body: new Uint8Array(body),
+    });
+    if (!res.ok) throw new Error(`Supabase upload failed: ${res.status} ${await res.text()}`);
+    return key;
+  }
+  await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }));
+  return key;
+}
+
+export async function deleteObject(key: string) {
+  if (useSupabase) {
+    await fetch(`${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${key}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, apikey: SUPABASE_SERVICE_KEY! },
+    });
+    return;
+  }
+  await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+}
+
+/** Browser-reachable URL for an object (buckets are public). */
 export function publicUrl(key: string) {
+  if (useSupabase) return `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_BUCKET}/${key}`;
   const base = process.env.S3_PUBLIC_URL ?? `${endpoint}/${bucket}`;
   return `${base}/${key}`;
+}
+
+/** Presigned URLs (S3/MinIO only — Supabase uses public URLs). */
+export async function presignUpload(key: string, contentType: string, expiresIn = 600) {
+  const cmd = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType });
+  return getSignedUrl(s3, cmd, { expiresIn });
+}
+
+export async function presignDownload(key: string, expiresIn = 600) {
+  if (useSupabase) return publicUrl(key);
+  const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
+  return getSignedUrl(s3, cmd, { expiresIn });
 }
