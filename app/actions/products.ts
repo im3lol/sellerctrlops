@@ -17,6 +17,7 @@ export type ProductFormState = { error?: string; ok?: boolean };
 
 const productSchema = z.object({
   name: z.string().min(1, "اسم المنتج مطلوب"),
+  brand: z.string().optional(),
   description: z.string().optional(),
   features: z.string().optional(),
   sizes: z.string().optional(),
@@ -31,6 +32,7 @@ const productSchema = z.object({
 function readProductForm(formData: FormData) {
   return productSchema.safeParse({
     name: formData.get("name"),
+    brand: formData.get("brand") || undefined,
     description: formData.get("description") || undefined,
     features: formData.get("features") || undefined,
     sizes: formData.get("sizes") || undefined,
@@ -70,6 +72,7 @@ export async function createProductAction(_prev: ProductFormState, formData: For
       workspaceId,
       sku: `MAN-${Date.now()}`,
       name: d.name,
+      brand: d.brand ?? null,
       description: d.description ?? null,
       features: d.features ?? null,
       sizes: d.sizes ?? null,
@@ -112,6 +115,7 @@ export async function updateProductAction(_prev: ProductFormState, formData: For
     .update(products)
     .set({
       name: d.name,
+      brand: d.brand ?? null,
       description: d.description ?? null,
       features: d.features ?? null,
       sizes: d.sizes ?? null,

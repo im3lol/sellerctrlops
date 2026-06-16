@@ -35,6 +35,7 @@ export type ProductFormValues = {
   id: string;
   workspaceId: string;
   name: string;
+  brand: string | null;
   description: string | null;
   features: string | null;
   sizes: string | null;
@@ -110,7 +111,11 @@ export function ProductFormDialog({
             <Input id="pf-name" name="name" defaultValue={p?.name ?? ""} required />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="pf-brand">البراند</Label>
+              <Input id="pf-brand" name="brand" defaultValue={p?.brand ?? ""} />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="pf-price">السعر</Label>
               <Input id="pf-price" name="price" defaultValue={p?.price ?? ""} dir="ltr" inputMode="decimal" />

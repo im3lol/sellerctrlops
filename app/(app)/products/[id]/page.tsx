@@ -76,6 +76,7 @@ export default async function ProductDetailPage({
                     id: p.id,
                     workspaceId: p.workspaceId,
                     name: p.name,
+                    brand: p.brand,
                     description: p.description,
                     features: p.features,
                     sizes: p.sizes,
@@ -100,6 +101,7 @@ export default async function ProductDetailPage({
 
             {/* Locked data from the imported Excel */}
             <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
+              <Field label="البراند" value={p.brand} />
               <Field label="السعر" value={p.price ? `${p.price} ر.س` : null} />
               <Field label="المقاسات" value={p.sizes} />
               {p.productUrl && (
