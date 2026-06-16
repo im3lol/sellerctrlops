@@ -50,6 +50,7 @@ export default async function ProductsPage({
         assignees={employees}
         canEdit={canEdit}
         showWorkspace
+        showAssignee={user.role !== "employee"}
       />
     </div>
   );

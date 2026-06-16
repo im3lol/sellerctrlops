@@ -18,6 +18,8 @@ import {
   type AssigneeOption,
 } from "@/components/products/inline-editors";
 import { ProductThumb } from "@/components/products/product-thumb";
+import { InlineFieldEdit } from "@/components/products/inline-field-edit";
+import { ListingButton } from "@/components/products/listing-button";
 import { useRealtime } from "@/components/realtime/use-realtime";
 import type { ProductRow } from "@/lib/queries/products";
 
@@ -27,12 +29,14 @@ export function ProductsTable({
   assignees,
   canEdit,
   showWorkspace = false,
+  showAssignee = true,
 }: {
   rows: ProductRow[];
   statuses: StatusOption[];
   assignees: AssigneeOption[];
   canEdit: boolean;
   showWorkspace?: boolean;
+  showAssignee?: boolean;
 }) {
   const router = useRouter();
 
@@ -51,11 +55,11 @@ export function ProductsTable({
             <TableHead className="text-right">السعر</TableHead>
             {showWorkspace && <TableHead className="text-right">مساحة العمل</TableHead>}
             {/* open columns (app-owned, after the imported data) */}
-            <TableHead className="text-right">المسؤول</TableHead>
-            <TableHead className="text-right">حالة المنصة</TableHead>
+            {showAssignee && <TableHead className="text-right">المسؤول</TableHead>}
+            <TableHead className="text-right">الحالة</TableHead>
             <TableHead className="text-right">ملاحظات</TableHead>
             <TableHead className="text-right">كود المنصة</TableHead>
-            <TableHead className="w-10" />
+            <TableHead className="w-20" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -89,14 +93,16 @@ export function ProductsTable({
               {showWorkspace && (
                 <TableCell className="text-sm text-muted-foreground">{p.workspaceName}</TableCell>
               )}
-              <TableCell>
-                <ProductAssigneeSelect
-                  productId={p.id}
-                  assignedTo={p.assignedTo}
-                  assignees={assignees}
-                  disabled={!canEdit}
-                />
-              </TableCell>
+              {showAssignee && (
+                <TableCell>
+                  <ProductAssigneeSelect
+                    productId={p.id}
+                    assignedTo={p.assignedTo}
+                    assignees={assignees}
+                    disabled={!canEdit}
+                  />
+                </TableCell>
+              )}
               <TableCell>
                 <ProductStatusSelect
                   productId={p.id}
@@ -105,19 +111,23 @@ export function ProductsTable({
                   disabled={!canEdit}
                 />
               </TableCell>
-              <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">
-                {p.notes ?? "—"}
-              </TableCell>
-              <TableCell className="font-mono text-xs text-muted-foreground" dir="ltr">
-                {p.amazonCode ?? "—"}
+              <TableCell>
+                <InlineFieldEdit productId={p.id} field="notes" value={p.notes} multiline placeholder="إضافة ملاحظة" disabled={!canEdit} />
               </TableCell>
               <TableCell>
-                <Link
-                  href={`/products/${p.id}`}
-                  className="grid size-8 place-items-center rounded-lg text-muted-foreground opacity-0 transition hover:bg-accent group-hover:opacity-100"
-                >
-                  <ExternalLink className="size-4" />
-                </Link>
+                <InlineFieldEdit productId={p.id} field="amazonCode" value={p.amazonCode} mono placeholder="إضافة الكود" disabled={!canEdit} />
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-0.5">
+                  <ListingButton productId={p.id} variant="icon" />
+                  <Link
+                    href={`/products/${p.id}`}
+                    title="فتح المنتج"
+                    className="grid size-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                  >
+                    <ExternalLink className="size-4" />
+                  </Link>
+                </div>
               </TableCell>
             </TableRow>
           ))}

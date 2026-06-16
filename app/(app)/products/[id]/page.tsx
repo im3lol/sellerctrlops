@@ -19,6 +19,7 @@ import {
 import { EditableField } from "@/components/products/editable-field";
 import { ActivityFeed } from "@/components/activity/activity-feed";
 import { CommentsSection } from "@/components/comments/comments-section";
+import { ListingButton } from "@/components/products/listing-button";
 import { formatDateAr } from "@/lib/format";
 
 export default async function ProductDetailPage({
@@ -122,6 +123,14 @@ export default async function ProductDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-4">
+          <Card className="space-y-3 p-5">
+            <div>
+              <p className="font-semibold">وصف المنتج بالذكاء الاصطناعي</p>
+              <p className="text-xs text-muted-foreground">حوّل بيانات المنتج إلى نص جاهز لأي منصة AI لإنشاء listing كامل.</p>
+            </div>
+            <ListingButton productId={id} variant="full" />
+          </Card>
+
           <Card className="space-y-4 p-5">
             <div className="space-y-1.5">
               <p className="text-sm text-muted-foreground">الحالة</p>
