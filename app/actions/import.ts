@@ -54,6 +54,7 @@ export async function importProductsAction(
     workspaceId,
     sku: `XLS-${stamp}-${i + 1}`,
     name: r.name ?? `منتج ${i + 1}`,
+    brand: r.brand ?? null,
     description: r.description ?? null,
     sizes: r.sizes ?? null,
     features: r.features ?? null,

@@ -7,6 +7,7 @@ import * as XLSX from "xlsx";
 export const TEMPLATE_COLUMNS: { header: string; field: ParsedField }[] = [
   { header: "لينك صورة العرض", field: "imageUrl" },
   { header: "اسم المنتج", field: "name" },
+  { header: "البراند", field: "brand" },
   { header: "وصف المنتج", field: "description" },
   { header: "مميزات المنتج", field: "features" },
   { header: "مقاسات المنتج", field: "sizes" },
@@ -18,6 +19,7 @@ export const TEMPLATE_COLUMNS: { header: string; field: ParsedField }[] = [
 export type ParsedField =
   | "imageUrl"
   | "name"
+  | "brand"
   | "description"
   | "sizes"
   | "features"
@@ -33,6 +35,7 @@ export function buildTemplateBuffer(): Buffer {
   const example = [
     "https://example.com/product.jpg",
     "سماعة بلوتوث لاسلكية",
+    "Anker",
     "سماعة بلوتوث عالية الجودة مع إلغاء الضوضاء",
     "بطارية 30 ساعة، مقاومة للماء، صوت نقي",
     "مقاس واحد",

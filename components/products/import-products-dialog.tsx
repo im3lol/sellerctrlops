@@ -88,7 +88,7 @@ export function ImportProductsDialog({ workspaceId }: { workspaceId: string }) {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            الأعمدة: لينك الصورة · اسم المنتج · الوصف · المقاسات · المميزات · لينك كل الصور · البراند · السعر · الألوان
+            الأعمدة: لينك صورة العرض · اسم المنتج · البراند · وصف المنتج · مميزات المنتج · مقاسات المنتج · لينك المنتج على الموقع · السعر · صور المنتج (درايف)
           </p>
         </div>
       </DialogContent>
