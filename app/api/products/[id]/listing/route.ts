@@ -31,7 +31,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     brand: p.brand,
     price: p.price,
     productUrl: p.productUrl,
-    galleryUrl: p.galleryUrl,
+    imageUrl: p.imageUrl,
   });
 
   const download = new URL(req.url).searchParams.get("download") === "1";
