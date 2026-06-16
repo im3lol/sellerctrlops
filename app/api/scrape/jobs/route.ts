@@ -4,7 +4,7 @@ import { scrapeJobs, scrapeRecipes, products } from "@/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { canAccessWorkspace } from "@/lib/workspaces";
-import { scraperTokenOk, sanitizeFields, corsPreflight, jsonCors, type RecipeFields } from "@/lib/scrape";
+import { scraperTokenOk, sanitizeFields, corsPreflight, jsonCors, isUuid, type RecipeFields } from "@/lib/scrape";
 
 export const runtime = "nodejs";
 
@@ -24,7 +24,7 @@ async function authorize(req: Request, workspaceId: string): Promise<{ ok: boole
 /** List recent jobs for a workspace. */
 export async function GET(req: Request) {
   const workspaceId = new URL(req.url).searchParams.get("workspaceId");
-  if (!workspaceId) return jsonCors({ error: "workspaceId required" }, 400);
+  if (!isUuid(workspaceId)) return jsonCors({ error: "معرّف مساحة العمل غير صالح (UUID)" }, 400);
   const { ok } = await authorize(req, workspaceId);
   if (!ok) return jsonCors({ error: "unauthorized" }, 401);
 
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     return jsonCors({ error: "invalid json" }, 400);
   }
   const workspaceId = String(body.workspaceId ?? "");
-  if (!workspaceId) return jsonCors({ error: "workspaceId required" }, 400);
+  if (!isUuid(workspaceId)) return jsonCors({ error: "معرّف مساحة العمل غير صالح (UUID)" }, 400);
   const { ok, userId } = await authorize(req, workspaceId);
   if (!ok) return jsonCors({ error: "unauthorized" }, 401);
 

@@ -4,7 +4,7 @@ import { scrapeJobs } from "@/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { canAccessWorkspace } from "@/lib/workspaces";
-import { scraperTokenOk, corsPreflight, jsonCors } from "@/lib/scrape";
+import { scraperTokenOk, corsPreflight, jsonCors, isUuid } from "@/lib/scrape";
 
 export const runtime = "nodejs";
 
@@ -15,6 +15,7 @@ export function OPTIONS() {
 /** Job progress (for the app UI / extension polling). */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!isUuid(id)) return jsonCors({ error: "معرّف غير صالح" }, 400);
   const [job] = await db.select().from(scrapeJobs).where(eq(scrapeJobs.id, id)).limit(1);
   if (!job) return jsonCors({ error: "not found" }, 404);
 

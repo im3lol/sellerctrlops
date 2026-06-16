@@ -4,7 +4,7 @@ import { products } from "@/db/schema";
 import { getCurrentUser } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { canAccessWorkspace } from "@/lib/workspaces";
-import { scraperTokenOk, corsPreflight, jsonCors } from "@/lib/scrape";
+import { scraperTokenOk, corsPreflight, jsonCors, isUuid } from "@/lib/scrape";
 
 export const runtime = "nodejs";
 
@@ -15,7 +15,7 @@ export function OPTIONS() {
 /** List draft (incomplete-data) products that have a product URL to scrape. */
 export async function GET(req: Request) {
   const workspaceId = new URL(req.url).searchParams.get("workspaceId");
-  if (!workspaceId) return jsonCors({ error: "workspaceId required" }, 400);
+  if (!isUuid(workspaceId)) return jsonCors({ error: "معرّف مساحة العمل غير صالح (UUID)" }, 400);
 
   // Auth: worker/extension token OR a logged-in reviewer with workspace access.
   if (!scraperTokenOk(req)) {
