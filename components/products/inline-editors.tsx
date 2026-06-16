@@ -5,18 +5,15 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { setProductStatusAction, assignProductAction } from "@/app/actions/products";
 import { StatusBadge } from "@/components/products/status-badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export type StatusOption = { id: string; name: string; color: string };
 export type AssigneeOption = { id: string; name: string; avatarUrl: string | null };
 
+/**
+ * Native <select> editors — reliably open on a single click in dense tables
+ * (no popup/pointer quirks), optimistic so the value updates instantly and only
+ * reverts if the server rejects.
+ */
 export function ProductStatusSelect({
   productId,
   statusId,
@@ -30,7 +27,6 @@ export function ProductStatusSelect({
 }) {
   const [pending, start] = useTransition();
   const router = useRouter();
-  // Optimistic local value so the change shows instantly and never visually reverts.
   const [value, setValue] = useState<string | null>(statusId);
   useEffect(() => setValue(statusId), [statusId]);
   const current = statuses.find((s) => s.id === value);
@@ -38,40 +34,36 @@ export function ProductStatusSelect({
   if (disabled) return <StatusBadge name={current?.name ?? null} color={current?.color ?? null} />;
 
   return (
-    <Select
-      value={value ?? undefined}
-      onValueChange={(v) => {
-        const prev = value;
-        setValue(v);
-        start(async () => {
-          try {
-            await setProductStatusAction(productId, v);
-            router.refresh();
-          } catch {
-            setValue(prev);
-            toast.error("تعذّر تحديث الحالة");
-          }
-        });
-      }}
-    >
-      <SelectTrigger
-        size="sm"
-        className="h-8 w-auto gap-1 border-none bg-transparent p-0 shadow-none focus-visible:ring-0 data-[state=open]:bg-accent/50"
-        data-pending={pending}
+    <div className="inline-flex items-center gap-1.5">
+      <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: current?.color ?? "#94a3b8" }} />
+      <select
+        value={value ?? ""}
+        disabled={pending}
+        aria-label="الحالة"
+        onChange={(e) => {
+          const v = e.target.value;
+          const prev = value;
+          setValue(v);
+          start(async () => {
+            try {
+              await setProductStatusAction(productId, v);
+              router.refresh();
+            } catch {
+              setValue(prev);
+              toast.error("تعذّر تحديث الحالة");
+            }
+          });
+        }}
+        className="cursor-pointer rounded-lg border bg-background px-2 py-1 text-sm font-medium outline-none hover:bg-accent focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
       >
-        <StatusBadge name={current?.name ?? "اختر"} color={current?.color ?? null} />
-      </SelectTrigger>
-      <SelectContent>
+        {!current && <option value="">اختر الحالة</option>}
         {statuses.map((s) => (
-          <SelectItem key={s.id} value={s.id}>
-            <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full" style={{ backgroundColor: s.color }} />
-              {s.name}
-            </span>
-          </SelectItem>
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
         ))}
-      </SelectContent>
-    </Select>
+      </select>
+    </div>
   );
 }
 
@@ -86,31 +78,23 @@ export function ProductAssigneeSelect({
   assignees: AssigneeOption[];
   disabled?: boolean;
 }) {
-  const [, start] = useTransition();
+  const [pending, start] = useTransition();
   const router = useRouter();
   const [value, setValue] = useState<string | null>(assignedTo);
   useEffect(() => setValue(assignedTo), [assignedTo]);
   const current = assignees.find((a) => a.id === value);
-  const initials = (name: string) => name.split(" ").slice(0, 2).map((p) => p[0]).join("");
 
-  const Pill = (
-    <span className="flex items-center gap-2">
-      <Avatar className="size-6">
-        {current?.avatarUrl && <AvatarImage src={current.avatarUrl} />}
-        <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
-          {current ? initials(current.name) : "؟"}
-        </AvatarFallback>
-      </Avatar>
-      <span className="text-sm">{current?.name ?? "غير معيّن"}</span>
-    </span>
-  );
-
-  if (disabled) return Pill;
+  if (disabled) {
+    return <span className="text-sm">{current?.name ?? "غير معيّن"}</span>;
+  }
 
   return (
-    <Select
+    <select
       value={value ?? "none"}
-      onValueChange={(v) => {
+      disabled={pending}
+      aria-label="المسؤول"
+      onChange={(e) => {
+        const v = e.target.value;
         const prev = value;
         setValue(v === "none" ? null : v);
         start(async () => {
@@ -123,21 +107,14 @@ export function ProductAssigneeSelect({
           }
         });
       }}
+      className="cursor-pointer rounded-lg border bg-background px-2 py-1 text-sm outline-none hover:bg-accent focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
     >
-      <SelectTrigger
-        size="sm"
-        className="h-8 w-auto gap-1 border-none bg-transparent p-0 shadow-none focus-visible:ring-0 data-[state=open]:bg-accent/50"
-      >
-        {Pill}
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="none">غير معيّن</SelectItem>
-        {assignees.map((a) => (
-          <SelectItem key={a.id} value={a.id}>
-            {a.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      <option value="none">غير معيّن</option>
+      {assignees.map((a) => (
+        <option key={a.id} value={a.id}>
+          {a.name}
+        </option>
+      ))}
+    </select>
   );
 }
