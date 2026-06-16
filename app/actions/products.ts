@@ -280,6 +280,47 @@ export async function publishWorkspaceReadyDraftsAction(
   return { ok: true, published: rows.length };
 }
 
+/**
+ * Bulk-delete products (managers with product.distribute only — stricter than
+ * confirm). Workspace-scoped; silently skips products outside access.
+ */
+export async function deleteProductsAction(ids: string[]): Promise<{ ok: boolean; deleted?: number; error?: string }> {
+  const user = await requireUser();
+  if (!can(user.role, "product.distribute")) return { ok: false, error: "غير مصرّح (المديرون فقط)" };
+  const wanted = ids.filter((id) => typeof id === "string" && id);
+  if (wanted.length === 0) return { ok: false, error: "لم يتم تحديد منتجات" };
+
+  const rows = await db
+    .select({ id: products.id, workspaceId: products.workspaceId })
+    .from(products)
+    .where(inArray(products.id, wanted));
+
+  const allowed: string[] = [];
+  const workspacesTouched = new Set<string>();
+  for (const p of rows) {
+    if (await canAccessWorkspace(user, p.workspaceId)) {
+      allowed.push(p.id);
+      workspacesTouched.add(p.workspaceId);
+    }
+  }
+  if (allowed.length === 0) return { ok: false, error: "غير مصرّح" };
+
+  await db.delete(products).where(inArray(products.id, allowed));
+
+  await recordActivity({
+    actorId: user.id,
+    workspaceId: rows[0]?.workspaceId,
+    entityType: "product",
+    action: "products.deleted",
+    summaryAr: `${user.name} حذف ${allowed.length} منتج`,
+  });
+  for (const ws of workspacesTouched) {
+    await publish(query, { channel: `workspace:${ws}`, type: "product_updated", payload: { bulkDeleted: true } });
+  }
+  revalidatePath("/products");
+  return { ok: true, deleted: allowed.length };
+}
+
 async function loadProduct(id: string) {
   const [p] = await db.select().from(products).where(eq(products.id, id)).limit(1);
   return p ?? null;

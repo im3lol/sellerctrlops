@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ExternalLink, CheckCircle2, Loader2, EyeOff, CheckCheck } from "lucide-react";
+import { ExternalLink, CheckCircle2, Loader2, EyeOff, CheckCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Table,
@@ -23,7 +23,18 @@ import {
 import { ProductThumb } from "@/components/products/product-thumb";
 import { InlineFieldEdit } from "@/components/products/inline-field-edit";
 import { ListingButton } from "@/components/products/listing-button";
-import { publishProductAction, publishProductsAction } from "@/app/actions/products";
+import { publishProductAction, publishProductsAction, deleteProductsAction } from "@/app/actions/products";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useRealtime } from "@/components/realtime/use-realtime";
 import type { ProductRow } from "@/lib/queries/products";
 
@@ -45,6 +56,7 @@ export function ProductsTable({
   assignees,
   canEdit,
   canReview = false,
+  canDelete = false,
   showWorkspace = false,
   showAssignee = true,
 }: {
@@ -53,12 +65,14 @@ export function ProductsTable({
   assignees: AssigneeOption[];
   canEdit: boolean;
   canReview?: boolean;
+  canDelete?: boolean;
   showWorkspace?: boolean;
   showAssignee?: boolean;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkPending, startBulk] = useTransition();
+  const [delPending, startDel] = useTransition();
 
   // Live refresh when any product in a visible workspace changes (§15/§17).
   useRealtime((e) => {
@@ -97,6 +111,21 @@ export function ProductsTable({
     });
   };
 
+  const deleteSelected = () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    startDel(async () => {
+      const res = await deleteProductsAction(ids);
+      if (res.ok) {
+        toast.success(`تم حذف ${res.deleted} منتج`);
+        clearSel();
+        router.refresh();
+      } else {
+        toast.error(res.error ?? "تعذّر الحذف");
+      }
+    });
+  };
+
   return (
     <div className="space-y-3">
       {selectable && (
@@ -129,15 +158,51 @@ export function ProductsTable({
               </button>
             )}
           </div>
-          <button
-            type="button"
-            disabled={selected.size === 0 || bulkPending}
-            onClick={confirmSelected}
-            className="ms-auto inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
-          >
-            {bulkPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCheck className="size-4" />}
-            تأكيد المحدد{selected.size > 0 ? ` (${selected.size})` : ""}
-          </button>
+          <div className="ms-auto flex items-center gap-2">
+            {canDelete && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={selected.size === 0 || delPending}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 px-4 py-1.5 text-sm font-semibold text-destructive transition hover:bg-destructive/10 disabled:opacity-50"
+                  >
+                    {delPending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                    حذف المحدد{selected.size > 0 ? ` (${selected.size})` : ""}
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>حذف {selected.size} منتج؟</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      سيُحذف المنتجات المحددة نهائياً مع بياناتها. لا يمكن التراجع.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={(e) => {
+                        e.preventDefault();
+                        deleteSelected();
+                      }}
+                      className="bg-destructive text-white hover:bg-destructive/90"
+                    >
+                      حذف
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            <button
+              type="button"
+              disabled={selected.size === 0 || bulkPending}
+              onClick={confirmSelected}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {bulkPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCheck className="size-4" />}
+              تأكيد المحدد{selected.size > 0 ? ` (${selected.size})` : ""}
+            </button>
+          </div>
         </div>
       )}
       <div className="overflow-x-auto rounded-2xl border bg-card">

@@ -163,7 +163,7 @@ async function ProductsTabContent({
         )}
       </div>
       {canReview && <ConfirmAllDrafts workspaceId={workspaceId} readyCount={readyDraftCount} />}
-      <ProductsTable rows={rows} statuses={statusOptions} assignees={assignees} canEdit={canEdit} canReview={canReview} />
+      <ProductsTable rows={rows} statuses={statusOptions} assignees={assignees} canEdit={canEdit} canReview={canReview} canDelete={canImport} />
       <ProductsPagination page={page} totalPages={totalPages} total={total} perPage={PRODUCTS_PER_PAGE} />
     </>
   );
