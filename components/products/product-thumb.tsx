@@ -23,6 +23,8 @@ export function ProductThumb({ src, name }: { src: string | null; name: string }
         <img
           src={src}
           alt={name}
+          loading="lazy"
+          decoding="async"
           onError={() => setBroken(true)}
           className="size-11 cursor-zoom-in rounded-lg border object-cover transition hover:ring-2 hover:ring-primary/40"
         />

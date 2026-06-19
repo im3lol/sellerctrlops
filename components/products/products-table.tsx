@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { ExternalLink, CheckCircle2, Loader2, EyeOff, CheckCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -77,8 +77,12 @@ export function ProductsTable({
   const [delPending, startDel] = useTransition();
 
   // Live refresh when any product in a visible workspace changes (§15/§17).
+  // Debounced so a burst of updates (bulk ops, scraping) triggers ONE refresh.
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useRealtime((e) => {
-    if (e.type === "product_updated") router.refresh();
+    if (e.type !== "product_updated") return;
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    refreshTimer.current = setTimeout(() => router.refresh(), 400);
   });
 
   const draftRows = useMemo(() => rows.filter((r) => r.isDraft), [rows]);

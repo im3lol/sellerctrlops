@@ -224,25 +224,30 @@ export async function publishProductsAction(ids: string[]): Promise<{ ok: boolea
     .from(products)
     .where(and(inArray(products.id, wanted), eq(products.isDraft, true)));
 
-  let published = 0;
-  const workspacesTouched = new Set<string>();
-  for (const p of rows) {
-    if (!(await canAccessWorkspace(user, p.workspaceId))) continue;
-    await db.update(products).set({ isDraft: false, updatedAt: new Date() }).where(eq(products.id, p.id));
-    workspacesTouched.add(p.workspaceId);
-    published++;
-    if (p.assignedTo) {
-      await notify({
-        userId: p.assignedTo,
-        type: "product_assigned",
-        title: "منتج جاهز للعمل",
-        body: p.name,
-        link: `/products/${p.id}`,
-      });
-    }
+  // Check workspace access ONCE per distinct workspace (not per product).
+  const distinctWs = [...new Set(rows.map((r) => r.workspaceId))];
+  const allowedWs = new Set<string>();
+  for (const ws of distinctWs) {
+    if (await canAccessWorkspace(user, ws)) allowedWs.add(ws);
   }
+  const allowed = rows.filter((r) => allowedWs.has(r.workspaceId));
+  const published = allowed.length;
+  const workspacesTouched = new Set(allowed.map((r) => r.workspaceId));
 
   if (published > 0) {
+    // One bulk UPDATE instead of one per product.
+    await db
+      .update(products)
+      .set({ isDraft: false, updatedAt: new Date() })
+      .where(inArray(products.id, allowed.map((r) => r.id)));
+
+    // Notify assignees (notifications are inherently per-user; best-effort).
+    for (const p of allowed) {
+      if (p.assignedTo) {
+        await notify({ userId: p.assignedTo, type: "product_assigned", title: "منتج جاهز للعمل", body: p.name, link: `/products/${p.id}` });
+      }
+    }
+
     await recordActivity({
       actorId: user.id,
       workspaceId: rows[0]?.workspaceId,

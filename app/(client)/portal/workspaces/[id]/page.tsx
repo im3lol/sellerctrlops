@@ -92,7 +92,7 @@ export default async function PortalWorkspacePage({ params }: { params: Promise<
                 <TableCell>
                   {p.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.imageUrl} alt={p.name} className="size-10 rounded-lg border object-cover" />
+                    <img src={p.imageUrl} alt={p.name} loading="lazy" decoding="async" className="size-10 rounded-lg border object-cover" />
                   ) : (
                     <div className="size-10 rounded-lg border bg-muted" />
                   )}

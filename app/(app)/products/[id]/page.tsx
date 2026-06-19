@@ -106,7 +106,7 @@ export default async function ProductDetailPage({
             {p.imageUrl && (
               <div className="mt-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.imageUrl} alt={p.name} className="max-h-72 w-full rounded-xl border object-contain" />
+                <img src={p.imageUrl} alt={p.name} loading="lazy" decoding="async" className="max-h-72 w-full rounded-xl border object-contain" />
               </div>
             )}
 

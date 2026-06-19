@@ -9,6 +9,7 @@
  * the product stays a draft until a reviewer confirms it.
  */
 
+import { timingSafeEqual } from "node:crypto";
 import type { products } from "@/db/schema";
 
 /** Product columns that can be populated by scraping (key = recipe field). */
@@ -81,13 +82,18 @@ export function isUuid(v: unknown): v is string {
   return typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 }
 
-/** Bearer-token auth for worker + extension endpoints. */
+/** Bearer-token auth for worker + extension endpoints. Constant-time compare. */
 export function scraperTokenOk(req: Request): boolean {
   const token = process.env.SCRAPER_TOKEN;
   if (!token) return false;
   const header = req.headers.get("authorization") ?? "";
   const provided = header.replace(/^Bearer\s+/i, "").trim();
-  return provided.length > 0 && provided === token;
+  if (!provided || provided.length !== token.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(provided), Buffer.from(token));
+  } catch {
+    return false;
+  }
 }
 
 /** Permissive CORS for token-authenticated endpoints (the Edge extension). */

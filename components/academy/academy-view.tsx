@@ -138,7 +138,7 @@ function ItemCard({
           <div className="relative aspect-video w-full bg-muted">
             {thumb && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={thumb} alt={item.title} className="size-full object-cover" />
+              <img src={thumb} alt={item.title} loading="lazy" decoding="async" className="size-full object-cover" />
             )}
             <span className="absolute inset-0 grid place-items-center bg-black/25 transition group-hover:bg-black/35">
               <span className="grid size-14 place-items-center rounded-full bg-red-600 text-white shadow-lg">
